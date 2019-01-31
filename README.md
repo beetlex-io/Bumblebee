@@ -18,5 +18,7 @@
     }
 ```
 open gateway default 8080 port
-http://192.168.2.25:9090 weight 3
-http://192.168.2.26:9090 weight 10
+
+add server http://192.168.2.25:9090 weight 3
+
+add server http://192.168.2.26:9090 weight 10
