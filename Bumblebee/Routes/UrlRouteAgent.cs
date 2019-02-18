@@ -22,7 +22,7 @@ namespace Bumblebee.Routes
             {
                 for (int i = 0; i < UrlRoute.RequestFilters.Length; i++)
                 {
-                    result = UrlRoute.RequestFilters[i].Execute(request, response);
+                    result = UrlRoute.RequestFilters[i].Executing(UrlRoute.Gateway, request, response);
                     if (!result)
                         break;
                 }
@@ -30,8 +30,7 @@ namespace Bumblebee.Routes
             }
             catch (Exception e_)
             {
-                BadGateway badGateway = new BadGateway($"execute url filter error {e_.Message}");
-                UrlRoute.Gateway.OnResponseError(new Events.EventResponseErrorArgs(request, response, badGateway, BadGateway.URL_FILTER_ERROR));
+                UrlRoute.Gateway.OnResponseError(new Events.EventResponseErrorArgs(request, response, UrlRoute.Gateway, $"execute url filter error {e_.Message}", Gateway.URL_FILTER_ERROR));
                 return false;
             }
 
@@ -44,14 +43,13 @@ namespace Bumblebee.Routes
                 var agent = UrlRoute.GetServerAgent(request);
                 if (agent == null)
                 {
-                    BadGateway result = new BadGateway($"The {Url} url route server unavailable");
                     Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(
-                        request, response, result, BadGateway.URL_NODE_SERVER_UNAVAILABLE);
-                    UrlRoute.Gateway.OnResponseError(erea);
+                        request, response, UrlRoute.Gateway, $"The {Url} url route server unavailable", Gateway.URL_NODE_SERVER_UNAVAILABLE);
+                    UrlRoute.Gateway.OnResponseError(erea);                 
                 }
                 else
                 {
-                    agent.Execute(request, response);
+                    agent.Agent.Execute(request, response, agent, UrlRoute);
                 }
             }
         }

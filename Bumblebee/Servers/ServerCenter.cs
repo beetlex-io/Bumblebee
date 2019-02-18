@@ -15,6 +15,7 @@ namespace Bumblebee.Servers
 
         }
 
+
         private ConcurrentDictionary<string, ServerAgent> mAgents;
 
         public Gateway Gateway { get; private set; }
@@ -27,6 +28,12 @@ namespace Bumblebee.Servers
             }
         }
 
+        public static string GetHost(string host)
+        {
+            Uri uri = new Uri(host);
+            return uri.ToString();
+        }
+
         public void Verify()
         {
             foreach (var item in mAgents.Values)
@@ -35,33 +42,40 @@ namespace Bumblebee.Servers
             }
         }
 
-        public void Remove(string host)
+        public ServerAgent Get(string host)
         {
-            mAgents.TryRemove(host, out ServerAgent server);
+            mAgents.TryGetValue(GetHost(host), out ServerAgent server);
+            return server;
         }
 
-        public ServerAgent Add(string host, int maxConnections)
+        public void Remove(string host)
+        {
+            mAgents.TryRemove(GetHost(host), out ServerAgent server);
+        }
+
+        public ServerAgent SetServer(string host, int maxConnections)
         {
             ServerAgent result = null;
             try
             {
-                Uri uri = new Uri(host);
-                result = new ServerAgent(uri, Gateway, maxConnections);
-                mAgents[uri.ToString()] = result;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway add {host} server success");
+                if (mAgents.TryGetValue(GetHost(host), out result))
+                {
+                    result.MaxConnections = maxConnections;
+                }
+                else
+                {
+                    result = new ServerAgent(new Uri(host), Gateway, maxConnections);
+                    mAgents[GetHost(host)] = result;
+                }
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway set {host} server max connections {maxConnections} success");
 
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway add {host} server error {e_.Message}");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}");
             }
             return result;
         }
 
-        public ServerAgent Get(string host)
-        {
-            mAgents.TryGetValue(host, out ServerAgent item);
-            return item;
-        }
     }
 }

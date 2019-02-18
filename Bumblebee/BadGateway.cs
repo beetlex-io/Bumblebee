@@ -17,17 +17,7 @@ namespace Bumblebee
 
         }
 
-        public const int CLUSTER_SERVER_UNAVAILABLE = 10000;
-
-        public const int URL_NODE_SERVER_UNAVAILABLE = 12000;
-
-        public const int URL_FILTER_ERROR = 13000;
-
-        public const int SERVER_NET_ERROR = 21001;
-
-        public const int SERVER_AGENT_PROCESS_ERROR = 22001;
-
-        public const int SERVER_MAX_OF_CONNECTIONS = 23001;
+      
 
 
     }

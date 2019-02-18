@@ -8,11 +8,12 @@ namespace Bumblebee.Filters
 {
     public class FilterCenter
     {
-        public string[] Names
+        public IEnumerable<FilterInfo> FiltersInfo
         {
             get
             {
-                return RequestFilters.Keys.ToArray();
+                return from a in RequestFilters.Values
+                       select new FilterInfo { Name = a.Name, Version = a.GetType().Assembly.GetName().Version.ToString(), Assembly = a.GetType().Assembly.GetName().Name };
             }
         }
 

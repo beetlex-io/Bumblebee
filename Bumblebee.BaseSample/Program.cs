@@ -15,10 +15,10 @@ namespace Bumblebee.BaseSample
                
             });
           
-             g.AddServer("http://localhost:9000").AddUrl("*", 0);
-            //g.AddServer("http://192.168.2.26:9090").AddUrl("*", 0);
-            //g.AddServer("http://192.168.2.27:9090").AddUrl("/order.*", 0);
-            //g.AddServer("http://192.168.2.28:9090").AddUrl("/order.*", 0);
+             g.SetServer("http://localhost:9000").AddUrl("*", 0);
+            //g.SetServer("http://192.168.2.26:9090").AddUrl("*", 0);
+            //g.SetServer("http://192.168.2.27:9090").AddUrl("/order.*", 0);
+            //g.SetServer("http://192.168.2.28:9090").AddUrl("/order.*", 0);
             g.Open();
             Console.Read();
         }

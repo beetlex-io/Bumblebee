@@ -7,12 +7,16 @@ namespace Bumblebee.Events
 {
     public class EventResponseErrorArgs : EventRequestArgs
     {
-        public EventResponseErrorArgs(HttpRequest request, HttpResponse response, IResult result, int errorCode)
-            : base(request, response)
+        public EventResponseErrorArgs(HttpRequest request, HttpResponse response, Gateway gateway, string message, int errorCode)
+            : base(request, response, gateway)
         {
-            Result = result;
+            Result = new BadGateway(message);
             ErrorCode = errorCode;
+            Message = message;
         }
+
+        public string Message { get; private set; }
+
         public IResult Result { get; set; }
 
         public int ErrorCode { get; private set; }

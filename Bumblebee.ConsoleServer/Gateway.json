@@ -1,0 +1,20 @@
+﻿{
+  "Servers": [
+    {
+      "Uri": "http://localhost:9000/",
+      "MaxConnections": 100
+    }
+  ],
+  "Urls": [
+    {
+      "Url": "*",
+      "HashPattern": null,
+      "Servers": [
+        {
+          "Url": "http://localhost:9000/",
+          "Weight": 0
+        }
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@ namespace Bumblebee.Servers
             }
         }
 
-        private List<ServerItem> serverItems = new List<ServerItem>();
+        private List<UrlServerInfo> serverItems = new List<UrlServerInfo>();
 
         private WeightTable weightTable = new WeightTable();
 
@@ -25,7 +25,9 @@ namespace Bumblebee.Servers
 
         public string Url { get; private set; }
 
-        public ServerItem[] GetServers
+        public UrlServerInfo[] ServerWeightTable => weightTable.ServerTable;
+
+        public UrlServerInfo[] GetServers
         {
             get
             {
@@ -76,11 +78,12 @@ namespace Bumblebee.Servers
 
         public void NewOrModify(string host, int weight = 0)
         {
+            host = ServerCenter.GetHost(host);
             if (weight > 10)
                 weight = 10;
             if (weight < 0)
                 weight = 0;
-            var item = serverItems.Find(i => i.Agent.Host == host);
+            var item = serverItems.Find(i => i.Agent.Uri.ToString() == host);
             if (item != null)
             {
                 item.Weight = weight;
@@ -96,10 +99,7 @@ namespace Bumblebee.Servers
                 }
                 else
                 {
-                    ServerItem serverItem = new ServerItem
-                    {
-                        Agent = agent
-                    };
+                    UrlServerInfo serverItem = new UrlServerInfo(Url, agent);
                     mServerID.TryDequeue(out ulong id);
                     serverItem.ID = id;
                     serverItem.Weight = weight;
@@ -113,13 +113,17 @@ namespace Bumblebee.Servers
 
         public void Remove(string host)
         {
+            host = ServerCenter.GetHost(host);
             for (int i = 0; i < serverItems.Count; i++)
             {
-                if (serverItems[i].Agent.Host == host)
+                if (serverItems[i].Agent.Uri.ToString() == host)
                 {
                     ulong id = serverItems[i].ID;
                     serverItems.RemoveAt(i);
-                    RefreshWeightTable();
+                    if (serverItems.Count > 0)
+                    {
+                        RefreshWeightTable();
+                    }
                     mServerID.Enqueue(id);
                     Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route remove server {host} success");
                     return;
@@ -128,7 +132,7 @@ namespace Bumblebee.Servers
 
         }
 
-        public ServerAgent GetAgent(long hashCode)
+        public UrlServerInfo GetAgent(ulong hashCode)
         {
             if (Available)
                 return weightTable.GetAgent(hashCode);
@@ -146,8 +150,17 @@ namespace Bumblebee.Servers
         }
 
 
-        public class ServerItem
+        public class UrlServerInfo
         {
+
+            public UrlServerInfo(string url, ServerAgent agent)
+            {
+                Url = url;
+                Agent = agent;
+            }
+
+            public string Url { get; set; }
+
             public ServerAgent Agent { get; set; }
 
             public ulong ID { get; set; }
@@ -173,22 +186,24 @@ namespace Bumblebee.Servers
 
             private const int TABLE_SIZE = 50;
 
-            private ServerAgent[] mConnectionsTable;
+            private UrlServerInfo[] mConnectionsTable = new UrlServerInfo[0];
 
-            private List<ServerItem> mServerItems = new List<ServerItem>();
+            public UrlServerInfo[] ServerTable => mConnectionsTable;
 
-            public ServerAgent GetAgent(long hashCode)
+            private List<UrlServerInfo> mServerItems = new List<UrlServerInfo>();
+
+            public UrlServerInfo GetAgent(ulong hashCode)
             {
                 if (mServerItems.Count == 0)
                     return null;
                 int count = 0;
-                int arrayIndex = (int)(hashCode % mConnectionsTable.Length);
+                int arrayIndex = (int)(hashCode % (uint)mConnectionsTable.Length);
                 while (count < mConnectionsTable.Length)
                 {
                     if (arrayIndex >= TABLE_SIZE)
                         arrayIndex = 0;
                     var server = mConnectionsTable[arrayIndex];
-                    if (server.Available)
+                    if (server.Agent.Available)
                         return server;
                     arrayIndex++;
                     count++;
@@ -196,7 +211,7 @@ namespace Bumblebee.Servers
                 return null;
             }
 
-            private void Shuffle(ServerItem[] list)
+            private void Shuffle(UrlServerInfo[] list)
             {
                 Random rng = new Random();
                 int n = list.Length;
@@ -204,23 +219,23 @@ namespace Bumblebee.Servers
                 {
                     n--;
                     int k = rng.Next(n + 1);
-                    ServerItem value = list[k];
+                    UrlServerInfo value = list[k];
                     list[k] = list[n];
                     list[n] = value;
                 }
             }
 
-            public void Add(ServerItem item)
+            public void Add(UrlServerInfo item)
             {
                 mServerItems.Add(item);
             }
 
             public void Builder()
             {
-                mConnectionsTable = new ServerAgent[TABLE_SIZE];
+                mConnectionsTable = new UrlServerInfo[TABLE_SIZE];
                 int sum = 0;
                 mServerItems.Sort((x, y) => y.Weight.CompareTo(x.Weight));
-                List<ServerItem> availableClients = new List<ServerItem>();
+                List<UrlServerInfo> availableClients = new List<UrlServerInfo>();
                 for (int i = 0; i < mServerItems.Count; i++)
                 {
                     if (mServerItems[i].Agent.Available)
@@ -252,17 +267,17 @@ namespace Bumblebee.Servers
                 count = 0;
                 while (count < TABLE_SIZE)
                 {
-                    foreach (ServerItem item in availableClients)
+                    foreach (UrlServerInfo item in availableClients)
                     {
                         if (item.mItems.Count > 0)
                         {
-                            mConnectionsTable[count] = item.Agent;
+                            mConnectionsTable[count] = item;
                             item.mItems.Dequeue();
                             count++;
                         }
                     }
                 }
-                foreach (ServerItem item in availableClients)
+                foreach (UrlServerInfo item in availableClients)
                 {
                     Status |= item.ID;
                 }

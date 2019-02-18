@@ -1,4 +1,5 @@
 ﻿using BeetleX.FastHttpApi;
+using Bumblebee.Servers;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,6 +10,8 @@ namespace Bumblebee.Filters
     {
         string Name { get; }
 
-        bool Execute(HttpRequest request, HttpResponse response);
+        bool Executing(Gateway gateway, HttpRequest request, HttpResponse response);
+
+        void Executed(Gateway gateway, HttpRequest request, HttpResponse response, ServerAgent server, int code,long useTime);
     }
 }

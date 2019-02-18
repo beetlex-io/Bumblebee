@@ -14,7 +14,8 @@ namespace Bumblebee.Servers
     class RequestAgent
     {
 
-        public RequestAgent(TcpClientAgent clientAgent, ServerAgent serverAgent, HttpRequest request, HttpResponse response)
+        public RequestAgent(TcpClientAgent clientAgent, ServerAgent serverAgent, HttpRequest request, HttpResponse response,
+            UrlRouteServerGroup.UrlServerInfo urlServerInfo, Routes.UrlRoute urlRoute)
         {
             mTransferEncoding = false;
             mRequestLength = 0;
@@ -27,7 +28,13 @@ namespace Bumblebee.Servers
             mClientAgent.Client.DataReceive = OnReveive;
             mBuffer = mClientAgent.Buffer;
             Status = RequestStatus.None;
+            UrlServerInfo = urlServerInfo;
+            UrlRoute = urlRoute;
+            mStartTime = TimeWatch.GetElapsedMilliseconds();
+
         }
+
+        private long mStartTime;
 
         private byte[] mBuffer;
 
@@ -37,7 +44,13 @@ namespace Bumblebee.Servers
 
         private bool mTransferEncoding = false;
 
+        public UrlRouteServerGroup.UrlServerInfo UrlServerInfo { get; private set; }
+
+        public Routes.UrlRoute UrlRoute { get; set; }
+
         public HttpRequest Request { get; private set; }
+
+        public long Time { get; set; }
 
         public HttpResponse Response { get; private set; }
 
@@ -55,23 +68,22 @@ namespace Bumblebee.Servers
 
             if (Status == RequestStatus.Requesting)
             {
-                BadGateway result = new BadGateway(e.Error);
                 EventResponseErrorArgs erea;
                 if (e.Error is SocketException)
                 {
-                    Code = ServerAgent.SOCKET_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, result, BadGateway.SERVER_NET_ERROR);
+                    Code = Gateway.SOCKET_ERROR_CODE;
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_NET_ERROR);
                 }
                 else
                 {
-                    Code = ServerAgent.PROCESS_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, result, BadGateway.SERVER_AGENT_PROCESS_ERROR);
+                    Code = Gateway.PROCESS_ERROR_CODE;
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_AGENT_PROCESS_ERROR);
                 }
                 OnCompleted(erea);
             }
             else
             {
-                Code = ServerAgent.OTHRER_ERROR_CODE;
+                Code = Gateway.OTHRER_ERROR_CODE;
                 if (Status > RequestStatus.None)
                 {
                     OnCompleted(null);
@@ -140,8 +152,6 @@ namespace Bumblebee.Servers
                 }
             }
         }
-
-
 
         private void ResponseBody(PipeStream pipeStream)
         {
@@ -278,14 +288,9 @@ namespace Bumblebee.Servers
                 }
                 catch (Exception e_)
                 {
-                    string error = $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} to {Server.Host}:{Server.Port} error {e_.Message}@{e_.StackTrace}";
-                    if (request.Server.EnableLog(BeetleX.EventArgs.LogType.Error))
-                    {
-                        request.Server.Log(BeetleX.EventArgs.LogType.Error, error);
-                    }
-                    BadGateway result = new BadGateway(error);
+                    string error = $" request to {Server.Host}:{Server.Port} error {e_.Message}@{e_.StackTrace}";
                     EventResponseErrorArgs eventResponseErrorArgs =
-                        new EventResponseErrorArgs(request, response, result, BadGateway.SERVER_NET_ERROR);
+                        new EventResponseErrorArgs(request, response, UrlRoute.Gateway, error, Gateway.SERVER_NET_ERROR);
                     try
                     {
                         if (mClientAgent.Client != null)
@@ -306,11 +311,13 @@ namespace Bumblebee.Servers
         {
             if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
             {
+                Time = TimeWatch.GetElapsedMilliseconds() - mStartTime;
                 mClientAgent.Client.ClientError = null;
                 mClientAgent.Client.DataReceive = null;
                 Server.Push(mClientAgent);
                 try
                 {
+                    UrlRoute.FilterExecuted(this.Request, this.Response, this.Server, this.Code, this.Time);
                     Completed?.Invoke(this);
                 }
                 catch (Exception e_)

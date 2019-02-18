@@ -11,6 +11,23 @@ namespace Bumblebee
 {
     public class Gateway : IDisposable
     {
+        public const int OTHRER_ERROR_CODE = 580;
+
+        public const int SOCKET_ERROR_CODE = 581;
+
+        public const int PROCESS_ERROR_CODE = 582;
+
+        public const int CLUSTER_SERVER_UNAVAILABLE = 590;
+
+        public const int URL_NODE_SERVER_UNAVAILABLE = 591;
+
+        public const int URL_FILTER_ERROR = 592;
+
+        public const int SERVER_NET_ERROR = 570;
+
+        public const int SERVER_AGENT_PROCESS_ERROR = 571;
+
+        public const int SERVER_MAX_OF_CONNECTIONS = 572;
 
         static Gateway()
         {
@@ -21,13 +38,13 @@ namespace Bumblebee
         public Gateway()
         {
             HttpServer = new HttpApiServer();
-            HttpServer.Options.Port = 8080;
             Filters = new Filters.FilterCenter(this);
             Routes = new Routes.RouteCenter(this);
             Agents = new Servers.ServerCenter(this);
-
+            AgentMaxSocketError = 5;
         }
 
+        public int AgentMaxSocketError { get; set; }
 
         public void LoadFilters(System.Reflection.Assembly assembly)
         {
@@ -44,9 +61,10 @@ namespace Bumblebee
                 }
                 catch (Exception e_)
                 {
-                    HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name} filter error {e_.Message}");
+                    HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} filter error {e_.Message} {e_.StackTrace}");
                 }
             }
+            Routes.ReloadFilters();
         }
 
         private System.Threading.Timer mVerifyTimer;
@@ -81,11 +99,10 @@ namespace Bumblebee
 
         public Servers.ServerCenter Agents { get; private set; }
 
-        public Statistics Statistics { get; private set; } = new Statistics();
 
-        public Servers.ServerAgent AddServer(string host, int maxConnections = 200)
+        public Servers.ServerAgent SetServer(string host, int maxConnections = 200)
         {
-            return Agents.Add(host, maxConnections);
+            return Agents.SetServer(host, maxConnections);
 
         }
 
@@ -96,16 +113,9 @@ namespace Bumblebee
             return this;
         }
 
-        public Routes.UrlRoute AddRoute(string url, params string[] hosts)
+        public Routes.UrlRoute SetRoute(string url, string hashPattern = null)
         {
-            var result = Routes.NewOrGet(url);
-            if (hosts != null)
-            {
-                foreach (var item in hosts)
-                {
-                    result.AddServer(item);
-                }
-            }
+            var result = Routes.NewOrGet(url, hashPattern);
             return result;
         }
 
@@ -129,17 +139,21 @@ namespace Bumblebee
 
         private void OnRequest(object sender, EventHttpRequestArgs e)
         {
+            var url = e.Request.BaseUrl;
+            if (url.Length > 2 && url[1] == '_' && url[2] == '_')
+                return;
             try
             {
+                HttpServer.RequestExecting();
                 if (OnRequesting(e.Request, e.Response))
                 {
-                    var item = Routes.GetAgent(e.Request.BaseUrl);
+                    var item = Routes.GetAgent(e.Request);
                     if (item == null)
                     {
-                        BadGateway result = new BadGateway("Cluster server unavailable");
                         EventResponseErrorArgs error = new EventResponseErrorArgs(
-                            e.Request, e.Response, result, BadGateway.CLUSTER_SERVER_UNAVAILABLE
+                            e.Request, e.Response, this, "Cluster server unavailable", Gateway.CLUSTER_SERVER_UNAVAILABLE
                             );
+                       
                         OnResponseError(error);
                     }
                     else
@@ -158,25 +172,55 @@ namespace Bumblebee
             }
             finally
             {
+
                 e.Cancel = true;
             }
         }
 
-        internal void OnRequestCompleted(Servers.RequestAgent agent)
+        public void Response(HttpResponse response, object result)
         {
-            this.Statistics.Add(agent.Code);
-            EventRequestCompletedArgs e = new EventRequestCompletedArgs(agent.Request, agent.Response, agent.Code);
-            Requested?.Invoke(this, e);
+            HttpServer.RequestExecuted();
+            response.Result(result);
+        }
+
+        internal void OnResponseError(EventResponseErrorArgs e)
+        {
+            if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
+            {
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} error {e.Message}");
+            }
+            HttpServer.RequestExecuted();
+            ResponseError?.Invoke(this, e);
+            if (e.Result != null)
+            {
+                e.Response.Result(e.Result);
+            }
+        }
+
+        internal void OnRequestCompleted(Servers.RequestAgent success)
+        {
+            HttpServer.RequestExecuted();
+            if (Requested != null)
+            {
+                EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.Request, success.Response, this, success.Code, success.Server, success.Time);
+                Requested(this, e);
+            }
         }
 
         public event EventHandler<EventRequestCompletedArgs> Requested;
 
         public void Open()
         {
+            HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
+            {
+                LoadFilters(e.Assembly);
+            };
             HttpServer.Open();
             HttpServer.HttpRequesting += OnRequest;
+            LoadConfig();
             HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway server started");
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);
+
         }
 
         public void Dispose()
@@ -186,27 +230,60 @@ namespace Bumblebee
 
         public event EventHandler<EventResponseErrorArgs> ResponseError;
 
-        internal void OnResponseError(EventResponseErrorArgs e)
-        {
-            ResponseError?.Invoke(this, e);
-            if (e.Result != null)
-            {
-                e.Response.Result(e.Result);
-            }
-        }
-
         public event EventHandler<EventRequestingArgs> Requesting;
 
         protected bool OnRequesting(HttpRequest request, HttpResponse response)
         {
+
             if (Requesting != null)
             {
-                EventRequestingArgs e = new EventRequestingArgs(request, response);
+                EventRequestingArgs e = new EventRequestingArgs(request, response, this);
                 e.Cancel = false;
                 Requesting?.Invoke(this, e);
                 return !e.Cancel;
             }
             return true;
+        }
+
+        public void SaveConfig()
+        {
+            try
+            {
+                GatewayConfig.SaveConfig(this);
+                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway save config success");
+            }
+            catch (Exception e_)
+            {
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway save config error  {e_.Message}");
+            }
+
+        }
+
+        public void LoadConfig()
+        {
+            try
+            {
+                var config = GatewayConfig.LoadConfig();
+                if (config != null)
+                    LoadConfig(config);
+            }
+            catch (Exception e_)
+            {
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load config error  {e_.Message}");
+            }
+        }
+
+        public void LoadConfig(GatewayConfig config)
+        {
+            try
+            {
+                config.To(this);
+                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load config success");
+            }
+            catch (Exception e_)
+            {
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load config error  {e_.Message}");
+            }
         }
     }
 }

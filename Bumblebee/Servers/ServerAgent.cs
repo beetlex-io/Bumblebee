@@ -11,15 +11,11 @@ namespace Bumblebee.Servers
     public class ServerAgent : IDisposable
     {
 
-        public const int OTHRER_ERROR_CODE = 1;
-
-        public const int SOCKET_ERROR_CODE = 8;
-
-        public const int PROCESS_ERROR_CODE = 10;
-
         public ServerAgent(Uri uri, Gateway gateway, int maxConnections = 100)
         {
             Uri = uri;
+            ServerName = uri.ToString();
+            ServerID = GetServerID();
             Host = uri.Host;
             Port = uri.Port;
             Available = true;
@@ -31,9 +27,26 @@ namespace Bumblebee.Servers
             }
             mConnections = 10;
             mCount = 10;
-            MaxSocketErrors = 5;
             this.Available = false;
         }
+
+        private static ushort mID = 1;
+
+        private static ushort GetServerID()
+        {
+            lock (typeof(ServerAgent))
+            {
+
+                mID++;
+                if (mID >= ushort.MaxValue)
+                    mID = 1;
+                return mID;
+            }
+        }
+
+        public string ServerName { get; set; }
+
+        public uint ServerID { get; set; }
 
         private System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
 
@@ -76,7 +89,7 @@ namespace Bumblebee.Servers
             if (value)
             {
                 var count = System.Threading.Interlocked.Increment(ref mSocketErrors);
-                if (count >= MaxSocketErrors)
+                if (count >= Gateway.AgentMaxSocketError)
                 {
                     this.Available = false;
                 }
@@ -88,13 +101,9 @@ namespace Bumblebee.Servers
             }
         }
 
-        public int MaxSocketErrors { get; set; }
-
         private int mSocketErrors = 0;
 
         private bool mDisposed = false;
-
-        public Statistics Statistics { get; private set; } = new Statistics();
 
         private ConcurrentStack<TcpClientAgent> requestAgentsPool = new ConcurrentStack<TcpClientAgent>();
 
@@ -102,7 +111,7 @@ namespace Bumblebee.Servers
 
         private int mConnections;
 
-        public int Count=>mCount;
+        public int Count => mCount;
 
         public Gateway Gateway { get; private set; }
 
@@ -148,24 +157,20 @@ namespace Bumblebee.Servers
             }
         }
 
-        public void Execute(HttpRequest request, HttpResponse response)
+        public void Execute(HttpRequest request, HttpResponse response, UrlRouteServerGroup.UrlServerInfo serverInfo, Routes.UrlRoute urlRoute)
         {
+
             TcpClientAgent clientAgent = PopClient();
             if (clientAgent == null)
             {
                 string error = $"Unable to reach {Host}:{Port} HTTP request, exceeding maximum number of connections";
-                if (Gateway.HttpServer.EnableLog(LogType.Error))
-                {
-                    Gateway.HttpServer.Log(LogType.Error, error);
-                }
-                BadGateway result = new BadGateway(error);
                 Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
-                    result, BadGateway.SERVER_MAX_OF_CONNECTIONS);
+                   Gateway, error, Gateway.SERVER_MAX_OF_CONNECTIONS);
                 Gateway.OnResponseError(erea);
             }
             else
             {
-                RequestAgent agent = new RequestAgent(clientAgent, this, request, response);
+                RequestAgent agent = new RequestAgent(clientAgent, this, request, response, serverInfo, urlRoute);
                 agent.Completed = OnCompleted;
                 agent.Execute();
             }
@@ -175,7 +180,8 @@ namespace Bumblebee.Servers
         {
             try
             {
-                if (requestAgent.Code == SOCKET_ERROR_CODE)
+
+                if (requestAgent.Code == Gateway.SOCKET_ERROR_CODE)
                 {
                     var count = System.Threading.Interlocked.Increment(ref mSocketErrors);
                     OnSocketError(true);
@@ -184,7 +190,6 @@ namespace Bumblebee.Servers
                 {
                     OnSocketError(false);
                 }
-                this.Statistics.Add(requestAgent.Code);
                 if (Gateway.HttpServer.EnableLog(LogType.Info))
                 {
                     Gateway.HttpServer.Log(LogType.Info,
@@ -212,10 +217,15 @@ namespace Bumblebee.Servers
             return string.Format("({0}){1}", this.Available ? 1 : 0, Uri);
         }
 
+        public ServerAgent AddUrl(string url, string hashPattern, int weight = 0)
+        {
+            var route = Gateway.SetRoute(url, hashPattern).AddServer(this.Uri.ToString(), weight);
+            return this;
+        }
+
         public ServerAgent AddUrl(string url, int weight = 0)
         {
-            var route = Gateway.AddRoute(url).AddServer(this.Uri.ToString(), weight);
-            return this;
+            return AddUrl(url, null, weight);
         }
     }
 }
