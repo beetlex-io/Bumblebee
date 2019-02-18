@@ -266,10 +266,12 @@ namespace Bumblebee.Servers
 
                     request.Header.Write(pipeStream);
                     pipeStream.Write(HeaderTypeFactory.LINE_BYTES, 0, 2);
-                    while (request.Length > 0)
+                    int bodylength = request.Length;
+                    while (bodylength > 0)
                     {
                         len = request.Stream.Read(buffer, 0, buffer.Length);
                         pipeStream.Write(buffer, 0, len);
+                        bodylength -= len;
                     }
                     Status = RequestStatus.Responding;
                     mClientAgent.Client.Stream.Flush();

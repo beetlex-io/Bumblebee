@@ -2,11 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <Version>0.2.0</Version>
+    <Version>0.2.2</Version>
     <Authors>henryfan</Authors>
     <Company>ikende.com</Company>
     <Copyright>Copyright © ikende.com 2019 email:henryfan@msn.com</Copyright>
-    <Description>dotnet core fast http agent server</Description>
+    <Description>dotnet core fast http agent server @ BeetleX</Description>
+    <PackageLicenseUrl>https://github.com/IKende/Bumblebee/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/IKende/Bumblebee/master/Bumblebee/Bumblebee.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/IKende/Bumblebee</PackageProjectUrl>
+    <PackageId>BeetleX.Bumblebee</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
