@@ -63,12 +63,12 @@
 ## 日志跟踪和统计
 由于网关涉及的并发处理量比较大，所以默认情况是不会对请求记录详细日志和处理状态情况。可以通过IRequestFilter或Requested事件来登记这些历史记录和统计
 ```
-            g.Requested += (o, e) => {
+    g.Requested += (o, e) => {
                 //e.Request
                 //e.Response
                 //e.Code
                 //e.Time
-            };
+    };
 ```
 ## 性能指标
 在E3-1230v2的四核上测试结构是，7万多的RPS代理转发，占用带宽7G
