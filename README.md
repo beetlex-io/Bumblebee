@@ -103,4 +103,56 @@
     };
 ```
 ## 性能指标
-在E3-1230v2的四核上测试结果是，7万多的RPS代理转发，占用带宽7G
+在E3-1230v2的四核上测试结果是，7万多的RPS代理转发，占用带宽7G;以下是详细的测试结果
+```
+
+D:\>bombardier.exe -c 500 -n 1000000 http://192.168.2.18:9090/home/plaintext
+Bombarding http://192.168.2.18:9090/home/plaintext with 1000000 request(s) using
+ 500 connection(s)
+ 1000000 / 1000000 [===============================================] 100.00% 9s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec    104050.45   15852.09  133791.97
+  Latency        4.80ms    10.35ms      3.06s
+  HTTP codes:
+    1xx - 0, 2xx - 1000000, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:    19.15MB/s
+D:\>bombardier.exe -c 500 -n 1000000 http://192.168.2.18:9090/home/json
+Bombarding http://192.168.2.18:9090/home/json with 1000000 request(s) using 500
+connection(s)
+ 1000000 / 1000000 [===============================================] 100.00% 9s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec    105541.22    9336.18  126993.02
+  Latency        4.73ms     1.45ms   337.02ms
+  HTTP codes:
+    1xx - 0, 2xx - 1000000, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:    20.90MB/s
+D:\>bombardier.exe -c 500 -n 1000000 http://192.168.2.18:9090/home/employees
+Bombarding http://192.168.2.18:9090/home/employees with 1000000 request(s) using
+ 500 connection(s)
+ 1000000 / 1000000 [==============================================] 100.00% 14s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec     69943.34    8672.45   91544.97
+  Latency        7.02ms     2.75ms   641.04ms
+  HTTP codes:
+    1xx - 0, 2xx - 1000000, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:   361.74MB/s
+D:\>bombardier.exe -c 500 -n 1000000 http://192.168.2.18:9090/home/orders
+Bombarding http://192.168.2.18:9090/home/orders with 1000000 request(s) using 50
+0 connection(s)
+ 1000000 / 1000000 [==============================================] 100.00% 12s
+Done!
+Statistics        Avg      Stdev        Max
+  Reqs/sec     78498.29   15013.95  101544.42
+  Latency        6.22ms     5.33ms   689.04ms
+  HTTP codes:
+    1xx - 0, 2xx - 1000000, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:   260.52MB/s
+D:\>
+```
