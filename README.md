@@ -120,7 +120,13 @@ Bumblebee是`.netcore`下基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关
             };
 ```
 ## 性能测试
-作为网关，性能和可靠性比较重要，毕竟它是服务之首；以下是针对Bumblebee作为代理网关的测试，主要测试不同数据情况下的性能指标。服务器配置:e3-1230v2 4核
+作为网关，性能和可靠性比较重要，毕竟它是服务之首；以下是针对Bumblebee作为代理网关的测试，主要测试不同数据情况下的性能指标.测试环境如下：
+
+- 网关服务器:e3-1230v2,部署Bumblebee
+- webapi服务器:e5-2676v2,部署webapi
+- 测试服务器:e5-2676v2,测试工具bombardier
+- 测试带宽环境:10Gb
+
 ### plaintext
 ```
 D:\>bombardier.exe -c 500 -n 1000000 http://192.168.2.18:9090/home/plaintext
