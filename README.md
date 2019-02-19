@@ -23,6 +23,22 @@
     {
       "Uri": "http://localhost:9000/",  //服务地址
       "MaxConnections": 100             //最大连接数
+    },
+    {
+      "Uri": "http://192.168.2.27:9090/",
+      "MaxConnections": 1000
+    },
+    {
+      "Uri": "http://192.168.2.26:9090/",
+      "MaxConnections": 1000
+    },
+    {
+      "Uri": "http://192.168.2.25:9090/",
+      "MaxConnections": 1000
+    },
+    {
+      "Uri": "http://192.168.2.29:9090/",
+      "MaxConnections": 1000
     }
   ],
   "Urls": [ //负载的URL列表
@@ -33,6 +49,22 @@
         {
           "Url": "http://localhost:9000/",  //服务地址
           "Weight": 0                       //权重
+        },
+        {
+          "Url": "http://192.168.2.27:9090/",
+          "Weight": 0
+        },
+        {
+          "Url": "http://192.168.2.26:9090/",
+          "Weight": 0
+        },
+        {
+          "Url": "http://192.168.2.25:9090/",
+          "Weight": 0
+        },
+        {
+          "Url": "http://192.168.2.29:9090/",
+          "Weight": 0
         }
       ]
     }
