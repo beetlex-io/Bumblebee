@@ -1,7 +1,8 @@
-# Bumblebee
-Bumblebee是`.netcore`下基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
+Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
 ## 组件部署
 组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.ConsoleServer](https://github.com/IKende/Bumblebee/tree/master/Bumblebee.ConsoleServer)编译部署即可（暂没提供编译好的版本）。`Bumblebee.ConsoleServer`提供两个配置文件描述'HttpConfig.json'和'Gateway.json'分别用于配置HTTP服务和网关对应的负载策略。
+## 可运行在什么系统
+任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)
 ## HTTP配置
 'HttpConfig.json'是用于配置网关的HTTP服务信息，主要包括服务端，HTTPs和可处理的最大连接数等。
 ```
@@ -70,6 +71,37 @@ Bumblebee是`.netcore`下基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关
 - **q:name**
 使用某个QueryString值作为一致性转发
 
+## 应用扩展
+`Bumblebee`只是一件组件，最终肯定需要针对业务需求来扩展它来实现相关功能；在讲解之前先看一下组件执行代理负载的流程图：
+
+
+![](http://img2.tomap.me/images/02/1550798852958_image.png)
+
+组件提供三个事件和一组过虑器来实现功能扩展，通过事件和过虑器可以对请求进行验证，拦截，日志记录和监控处理等功能。以下简单地预览一下这三个事件的实现
+```
+            g.Requesting += (o, e) =>
+            {
+                Console.WriteLine("Requesting");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                //e.Cancel = true;
+            };
+            g.AgentRequesting += (o, e) =>
+            {
+                Console.WriteLine("agent requesting:");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                Console.WriteLine($"    url route {e.UrlRoute}");
+                Console.WriteLine($"    agent server {e.Server.Uri}");
+                //e.Cancel = true;
+            };
+            g.Requested += (o, e) =>
+            {
+                Console.WriteLine("Requested");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                Console.WriteLine($"    url route {e.UrlRoute}");
+                Console.WriteLine($"    agent server {e.Server.Uri}");
+                Console.WriteLine($"    response code {e.Code} use time {e.Time}ms");             
+            };
+```
 ## 如何验证请求
 对于微服务网关来说，统一控制用户请求的有效性是重要的功能；虽然组件没有集成这些策略配置，不过可以通过制定组件的事件或`IRequestFilter`来实现控制。
 ### Requesting事件
@@ -108,6 +140,13 @@ Bumblebee是`.netcore`下基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关
             g.AddFilter<NotFountFilter>();
             g.Routes.GetRoute("*").SetFilter("NotFountFilter");
 ```
+## 断熔扩展
+同样组件并不提供服务断熔的处理，但通过扩展的确可以轻松地完成这个工作。首先可以在`Requested`事件统计完成的情况，参考指标可以是，url信息，`5xx`状态、加响应延时等进行一个连续计数并生成断熔策略，通过这些策略数据就可以在`Requesting`或`IRequestFilter`对相应的请求进行控制。大概的扩展流程如下:
+
+
+![](http://img2.tomap.me/images/02/1550801221806_image.png)
+
+
 ## 监控统计
 由于网关需要处理大量的请求转和规则处理，所以组件默认并没有提供详细的监控和日志功能，不过组件同样提供事件方式来制定这些数据的记录。用户可能通过事件把数据记录到自有的系统中进行分析统计，这些数据主要包括：Header,Cookie,QueryString,http请求的状态和处理损耗的时间.事件定义如下:
 ```
@@ -117,15 +156,32 @@ Bumblebee是`.netcore`下基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关
                 //e.Response 响应信息
                 //e.Code   Http状态
                 //e.Time   执行完成时间，单位毫秒
+                //e.Server 接收请求的服务
             };
 ```
+以下是针组件数据收集的一些统计扩展实例.
+
+
+![](http://img2.tomap.me/images/02/1550802462603_image.png)
+
+
+
+![](http://img3.tomap.me/images/07/1550802481058_image.png)
+
+
+
+![](http://img3.tomap.me/images/03/1550802504547_image.png)
+
+
+
 ## 性能测试
-作为网关，性能和可靠性比较重要，毕竟它是服务之首；以下是针对Bumblebee作为代理网关的测试，主要测试不同数据情况下的性能指标.测试环境如下：
+作为网关，性能和可靠性比较重要，毕竟它是服务之首；以下是针对Bumblebee作为代理网关的测试，主要测试不同数据情况下的性能指标。测试配置描述
 
 - 网关服务器:e3-1230v2,部署Bumblebee
 - webapi服务器:e5-2676v2,部署webapi
 - 测试服务器:e5-2676v2,测试工具bombardier
 - 测试带宽环境:10Gb
+
 
 ### plaintext
 ```
