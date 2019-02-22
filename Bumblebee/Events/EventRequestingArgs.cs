@@ -9,9 +9,29 @@ namespace Bumblebee.Events
     {
         public EventRequestingArgs(HttpRequest request, HttpResponse response,Gateway gateway) : base(request, response,gateway)
         {
-            Cancel = true;
+            Cancel = false;
         }
 
         public bool Cancel { get; set; }
+    }
+
+    public class EventAgentRequestingArgs : EventRequestingArgs
+    {
+        public EventAgentRequestingArgs(HttpRequest request, HttpResponse response, Gateway gateway, Servers.ServerAgent server, Routes.UrlRoute urlRoute) :
+            base(request, response, gateway)
+        {
+            Server = server;
+            UrlRoute = urlRoute;
+        }
+
+        public Routes.UrlRoute UrlRoute { get; private set; }
+
+        public Servers.ServerAgent Server
+        {
+            get;
+            private set;
+
+        }
+
     }
 }

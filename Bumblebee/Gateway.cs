@@ -202,7 +202,7 @@ namespace Bumblebee
             HttpServer.RequestExecuted();
             if (Requested != null)
             {
-                EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.Request, success.Response, this, success.Code, success.Server, success.Time);
+                EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.UrlRoute, success.Request, success.Response, this, success.Code, success.Server, success.Time);
                 Requested(this, e);
             }
         }
@@ -232,6 +232,8 @@ namespace Bumblebee
 
         public event EventHandler<EventRequestingArgs> Requesting;
 
+        public event EventHandler<EventAgentRequestingArgs> AgentRequesting;
+
         protected bool OnRequesting(HttpRequest request, HttpResponse response)
         {
 
@@ -240,6 +242,18 @@ namespace Bumblebee
                 EventRequestingArgs e = new EventRequestingArgs(request, response, this);
                 e.Cancel = false;
                 Requesting?.Invoke(this, e);
+                return !e.Cancel;
+            }
+            return true;
+        }
+
+        internal bool OnAgentRequesting(HttpRequest request, HttpResponse response, Servers.ServerAgent server,Routes.UrlRoute route)
+        {
+            if (AgentRequesting != null)
+            {
+                EventAgentRequestingArgs e = new EventAgentRequestingArgs(request, response, this, server,route);
+                e.Cancel = false;
+                AgentRequesting?.Invoke(this, e);
                 return !e.Cancel;
             }
             return true;

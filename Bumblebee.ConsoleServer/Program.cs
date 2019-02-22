@@ -27,6 +27,7 @@ namespace Bumblebee.ConsoleServer
         {
             g = new Gateway();
             g.HttpOptions(o => { o.UrlIgnoreCase = false; });
+
             g.Open();
             return Task.CompletedTask;
         }

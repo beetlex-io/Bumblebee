@@ -1,8 +1,12 @@
 ﻿{
   "Servers": [
     {
-      "Uri": "http://localhost:9000/",
-      "MaxConnections": 100
+      "Uri": "http://192.168.2.19:9090/",
+      "MaxConnections": 1000
+    },
+    {
+      "Uri": "http://192.168.2.25:9090/",
+      "MaxConnections": 1000
     }
   ],
   "Urls": [
@@ -11,8 +15,12 @@
       "HashPattern": null,
       "Servers": [
         {
-          "Url": "http://localhost:9000/",
-          "Weight": 0
+          "Url": "http://192.168.2.19:9090/",
+          "Weight": 10
+        },
+        {
+          "Url": "http://192.168.2.25:9090/",
+          "Weight": 5
         }
       ]
     }

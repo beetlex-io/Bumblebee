@@ -9,6 +9,7 @@
     <Description>dotnet core fast http gateway server</Description>
     <PackageIconUrl>https://raw.githubusercontent.com/IKende/Bumblebee/master/Bumblebee/Bumblebee.png</PackageIconUrl>
     <PackageLicenseUrl>https://github.com/IKende/Bumblebee/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageId>BeetleX.Bumblebee</PackageId>
   </PropertyGroup>
 
   <ItemGroup>

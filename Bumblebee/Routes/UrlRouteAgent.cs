@@ -49,7 +49,10 @@ namespace Bumblebee.Routes
                 }
                 else
                 {
-                    agent.Agent.Execute(request, response, agent, UrlRoute);
+                    if (UrlRoute.Gateway.OnAgentRequesting(request, response, agent.Agent,UrlRoute))
+                    {
+                        agent.Agent.Execute(request, response, agent, UrlRoute);
+                    }
                 }
             }
         }

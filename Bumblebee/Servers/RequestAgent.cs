@@ -324,7 +324,7 @@ namespace Bumblebee.Servers
                 {
                     if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Error))
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Error, $"gateway request {Server.Host}:{Server.Port} process completed event error {e_.Message}");
+                        Request.Server.Log(BeetleX.EventArgs.LogType.Error, $"gateway request {Server.Host}:{Server.Port} process completed event error {e_.Message}@{e_.StackTrace}");
                     }
                 }
                 finally

@@ -7,13 +7,14 @@ namespace Bumblebee.Events
 {
     public class EventRequestCompletedArgs : EventRequestArgs
     {
-        public EventRequestCompletedArgs(HttpRequest request, HttpResponse response, Gateway gateway, int code,
+        public EventRequestCompletedArgs(Routes.UrlRoute urlRoute, HttpRequest request, HttpResponse response, Gateway gateway, int code,
             Servers.ServerAgent server, long useTime)
             : base(request, response, gateway)
         {
             Code = code;
             Server = server;
             Time = useTime;
+            UrlRoute = urlRoute;
         }
 
         public long Time { get; set; }
@@ -21,5 +22,7 @@ namespace Bumblebee.Events
         public Servers.ServerAgent Server { get; private set; }
 
         public int Code { get; private set; }
+
+        public Routes.UrlRoute UrlRoute { get; internal set; }
     }
 }
