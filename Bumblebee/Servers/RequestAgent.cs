@@ -124,6 +124,7 @@ namespace Bumblebee.Servers
 
                     if (indexof.Length == 2)
                     {
+                        UrlRoute.Gateway.OnHeaderWrited(Request, Response, agentStream, Server);
                         agentStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
                         return;
@@ -145,7 +146,10 @@ namespace Bumblebee.Servers
                         }
                         else
                         {
-                            agentStream.Write(mBuffer, 0, indexof.Length);
+                            if (UrlRoute.Gateway.OnHeaderWriting(Request, Response, agentStream, Server, header.Item1, header.Item2))
+                            {
+                                agentStream.Write(mBuffer, 0, indexof.Length);
+                            }
                         }
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);

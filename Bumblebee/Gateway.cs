@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Bumblebee.Events;
 using Bumblebee.Filters;
+using BeetleX.Buffers;
 
 namespace Bumblebee
 {
@@ -144,6 +145,7 @@ namespace Bumblebee
                 return;
             try
             {
+                var ip = e.Request.RemoteIPAddress;
                 HttpServer.RequestExecting();
                 if (OnRequesting(e.Request, e.Response))
                 {
@@ -211,6 +213,7 @@ namespace Bumblebee
 
         public void Open()
         {
+            HttpServer[GATEWAY_TAG] = this;
             HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
             {
                 LoadFilters(e.Assembly);
@@ -299,5 +302,44 @@ namespace Bumblebee
                 HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load config error  {e_.Message}");
             }
         }
+
+        const string GATEWAY_TAG = "GATEWAY_TAG";
+
+        public static Gateway GetGateway(HttpApiServer httpApiServer)
+        {
+            return (Gateway)httpApiServer[GATEWAY_TAG];
+        }
+
+        #region header write events
+
+        public event EventHandler<Events.EventHeaderWriter> HeaderWrited;
+
+        internal void OnHeaderWrited(HttpRequest request, HttpResponse response, PipeStream stream, Servers.ServerAgent server)
+        {
+            if (HeaderWrited != null)
+            {
+                Events.EventHeaderWriter eventHeaderWriter = new EventHeaderWriter(request, response, this, stream);
+                eventHeaderWriter.Server = server;
+                HeaderWrited?.Invoke(this, eventHeaderWriter);
+            }
+        }
+
+        public event EventHandler<Events.EventHeaderWriting> HeaderWriting;
+
+        internal bool OnHeaderWriting(HttpRequest request, HttpResponse response, PipeStream stream, Servers.ServerAgent server, string name, string value)
+        {
+            if (HeaderWriting != null)
+            {
+                Events.EventHeaderWriting eventHeaderWriting = new EventHeaderWriting(request, response, this, stream);
+                eventHeaderWriting.Name = name;
+                eventHeaderWriting.Value = value;
+                eventHeaderWriting.Server = server;
+                HeaderWriting?.Invoke(this, eventHeaderWriting);
+                return !eventHeaderWriting.Cancel;
+            }
+            return true;
+        }
+
+        #endregion
     }
 }

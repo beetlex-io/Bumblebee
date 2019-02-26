@@ -70,9 +70,13 @@ namespace Bumblebee.Servers
                         wt.Add(item);
                     }
                 }
-                wt.Builder();
-                weightTable = wt;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route refresh weight table");
+
+                if (wt.Builder())
+                {
+                    weightTable = wt;
+                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route refresh weight table");
+                }
+
             }
         }
 
@@ -230,11 +234,13 @@ namespace Bumblebee.Servers
                 mServerItems.Add(item);
             }
 
-            public void Builder()
+            public bool Builder()
             {
                 mConnectionsTable = new UrlServerInfo[TABLE_SIZE];
                 int sum = 0;
                 mServerItems.Sort((x, y) => y.Weight.CompareTo(x.Weight));
+                if (mServerItems.Count == 0)
+                    return false;
                 List<UrlServerInfo> availableClients = new List<UrlServerInfo>();
                 for (int i = 0; i < mServerItems.Count; i++)
                 {
@@ -281,6 +287,7 @@ namespace Bumblebee.Servers
                 {
                     Status |= item.ID;
                 }
+                return true;
             }
         }
     }
