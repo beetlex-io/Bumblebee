@@ -79,6 +79,21 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 
 组件提供三个事件和一组过虑器来实现功能扩展，通过事件和过虑器可以对请求进行验证，拦截，日志记录和监控处理等功能。以下简单地预览一下这三个事件的实现
 ```
+            g.HeaderWriting += (o, e) =>
+            {
+                System.Console.WriteLine($"{e.Server.Uri} {e.Name}:{e.Value}");
+                if (e.Name == "Content-Type")
+                {
+                    e.Write(e.Name, "html");
+                    e.Cancel = true;
+                }
+            };
+            g.HeaderWrited += (o, e) =>
+            {
+                e.Write("compaly", "ikende.com");
+                System.Console.WriteLine($"{e.Server.Uri} header writed");
+            };
+            
             g.Requesting += (o, e) =>
             {
                 Console.WriteLine("Requesting");
