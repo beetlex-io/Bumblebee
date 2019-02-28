@@ -78,6 +78,8 @@ namespace Bumblebee
                 public string Url { get; set; }
 
                 public int Weight { get; set; }
+
+                public int MaxRps { get; set; }
             }
 
             public void From(Routes.UrlRoute urlRoute)
@@ -90,7 +92,7 @@ namespace Bumblebee
                 }
                 foreach (var server in urlRoute.Servers)
                 {
-                    Servers.Add(new RouteServer { Url = server.Agent.Uri.ToString(), Weight = server.Weight });
+                    Servers.Add(new RouteServer { Url = server.Agent.Uri.ToString(), Weight = server.Weight, MaxRps = server.MaxRPS });
                 }
             }
 
@@ -104,7 +106,7 @@ namespace Bumblebee
                 }
                 foreach (var server in Servers)
                 {
-                    result.AddServer(server.Url, server.Weight);
+                    result.AddServer(server.Url, server.Weight, server.MaxRps);
                 }
             }
 

@@ -30,10 +30,14 @@ namespace Bumblebee
 
         public const int SERVER_MAX_OF_CONNECTIONS = 572;
 
+        public const int SERVER_MAX_OF_RPS = 573;
+
+
         static Gateway()
         {
 
             GATEWAY_SERVER_HEDER = Encoding.UTF8.GetBytes("Server: Bumblebee(BeetleX)\r\n");
+            KEEP_ALIVE = Encoding.UTF8.GetBytes("Connection: keep-alive\r\n");
         }
 
         public Gateway()
@@ -71,6 +75,8 @@ namespace Bumblebee
         private System.Threading.Timer mVerifyTimer;
 
         internal static byte[] GATEWAY_SERVER_HEDER;
+
+        internal static byte[] KEEP_ALIVE;
 
         private void OnVerifyTimer(Object state)
         {
@@ -155,7 +161,6 @@ namespace Bumblebee
                         EventResponseErrorArgs error = new EventResponseErrorArgs(
                             e.Request, e.Response, this, "Cluster server unavailable", Gateway.CLUSTER_SERVER_UNAVAILABLE
                             );
-                       
                         OnResponseError(error);
                     }
                     else
@@ -187,10 +192,11 @@ namespace Bumblebee
 
         internal void OnResponseError(EventResponseErrorArgs e)
         {
-            if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
+            if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Warring))
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} error {e.Message}");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} error {e.Message}");
             }
+
             HttpServer.RequestExecuted();
             ResponseError?.Invoke(this, e);
             if (e.Result != null)
@@ -202,6 +208,7 @@ namespace Bumblebee
         internal void OnRequestCompleted(Servers.RequestAgent success)
         {
             HttpServer.RequestExecuted();
+            
             if (Requested != null)
             {
                 EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.UrlRoute, success.Request, success.Response, this, success.Code, success.Server, success.Time);
@@ -250,11 +257,12 @@ namespace Bumblebee
             return true;
         }
 
-        internal bool OnAgentRequesting(HttpRequest request, HttpResponse response, Servers.ServerAgent server,Routes.UrlRoute route)
+
+        internal bool OnAgentRequesting(HttpRequest request, HttpResponse response, Servers.ServerAgent server, Routes.UrlRoute urlRoute)
         {
             if (AgentRequesting != null)
             {
-                EventAgentRequestingArgs e = new EventAgentRequestingArgs(request, response, this, server,route);
+                EventAgentRequestingArgs e = new EventAgentRequestingArgs(request, response, this, server, urlRoute);
                 e.Cancel = false;
                 AgentRequesting?.Invoke(this, e);
                 return !e.Cancel;
@@ -341,5 +349,6 @@ namespace Bumblebee
         }
 
         #endregion
+
     }
 }

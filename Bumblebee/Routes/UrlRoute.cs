@@ -162,15 +162,15 @@ namespace Bumblebee.Routes
             }
         }
 
-        public UrlRoute AddServer(string host, int wediht = 0)
+        public UrlRoute AddServer(string host, int wediht, int maxRps)
         {
-            mServers.NewOrModify(host, wediht);
+            mServers.NewOrModify(host, wediht, maxRps);
             return this;
         }
 
-        public UrlRoute ChangeServerWedith(string host, int wediht = 0)
+        public UrlRoute ChangeServerWedith(string host, int wediht, int maxRps)
         {
-            mServers.NewOrModify(host, wediht);
+            mServers.NewOrModify(host, wediht, maxRps);
             return this;
         }
 

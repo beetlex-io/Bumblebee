@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Collections.Concurrent;
+using BeetleX;
+
 namespace Bumblebee.Servers
 {
     public class UrlRouteServerGroup
@@ -80,7 +82,7 @@ namespace Bumblebee.Servers
             }
         }
 
-        public void NewOrModify(string host, int weight = 0)
+        public void NewOrModify(string host, int weight, int maxRps)
         {
             host = ServerCenter.GetHost(host);
             if (weight > 10)
@@ -91,7 +93,8 @@ namespace Bumblebee.Servers
             if (item != null)
             {
                 item.Weight = weight;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route update server [{host}] weight [{weight}] success");
+                item.MaxRPS = maxRps;
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route update server [{host}] weight [{weight}] max rps [{maxRps}] success");
             }
             else
             {
@@ -107,8 +110,9 @@ namespace Bumblebee.Servers
                     mServerID.TryDequeue(out ulong id);
                     serverItem.ID = id;
                     serverItem.Weight = weight;
+                    serverItem.MaxRPS = maxRps;
                     serverItems.Add(serverItem);
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] success");
+                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
                 }
 
             }
@@ -153,7 +157,6 @@ namespace Bumblebee.Servers
             }
         }
 
-
         public class UrlServerInfo
         {
 
@@ -177,6 +180,38 @@ namespace Bumblebee.Servers
             }
 
             internal Queue<int> mItems = new Queue<int>();
+
+            public int MaxRPS { get; set; }
+
+            private int mRPS;
+
+            private long mLastTime;
+
+            internal bool ValidateRPS()
+            {
+                if (MaxRPS == 0)
+                    return true;
+                long now = TimeWatch.GetElapsedMilliseconds();
+                if (now - mLastTime >= 1000)
+                    return true;
+                return mRPS < MaxRPS;
+            }
+            internal void Increment()
+            {
+                if (MaxRPS > 0)
+                {
+                    long now = TimeWatch.GetElapsedMilliseconds();
+                    if (now - mLastTime >= 1000)
+                    {
+                        mLastTime = now;
+                        System.Threading.Interlocked.Exchange(ref mRPS, 1);
+                    }
+                    else
+                    {
+                        System.Threading.Interlocked.Increment(ref mRPS);
+                    }
+                }
+            }
         }
 
         class WeightTable

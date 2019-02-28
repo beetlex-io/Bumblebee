@@ -127,7 +127,7 @@ namespace Bumblebee.Routes
 
         private ulong GetUrlCode(string url)
         {
-            ulong value = (ulong)Math.Abs(url.GetHashCode()) << 16;
+            ulong value = (ulong)Math.Abs(url.ToLower().GetHashCode()) << 16;
             value |= (ushort)url.Length;
             return value;
         }

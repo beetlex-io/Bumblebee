@@ -16,9 +16,10 @@ namespace Bumblebee.BaseSample
                 h.LogToConsole = true;
 
             });
-            g.SetServer("http://192.168.2.26:9090").AddUrl("*", 0);
-            g.SetServer("http://192.168.2.27:9090").AddUrl("/order.*", 0);
-            g.SetServer("http://192.168.2.28:9090").AddUrl("/order.*", 0);
+            g.SetServer("http://192.168.2.19:8088").AddUrl("*", 0, 0);
+            g.SetServer("http://192.168.2.19:8080", 10000).AddUrl("*", 0, 1000);
+            g.SetServer("http://192.168.2.27:9090").AddUrl("/order.*", 0, 0);
+            g.SetServer("http://192.168.2.28:9090").AddUrl("/order.*", 0, 0);
             g.Requesting += (o, e) =>
             {
                 Console.WriteLine("Requesting");
@@ -45,11 +46,11 @@ namespace Bumblebee.BaseSample
             {
                 Console.WriteLine("Header Writing");
                 Console.WriteLine($"    {e.Server.Uri} {e.Name}:{e.Value}");
-                if (e.Name == "Content-Type")
-                {
-                    e.Write(e.Name, "html");
-                    e.Cancel = true;
-                }
+                //if (e.Name == "Content-Type")
+                //{
+                //    e.Write(e.Name, "html");
+                //    e.Cancel = true;
+                //}
             };
             g.HeaderWrited += (o, e) =>
             {

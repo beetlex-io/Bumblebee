@@ -16,11 +16,13 @@
       "Servers": [
         {
           "Url": "http://192.168.2.19:9090/",
-          "Weight": 10
+          "Weight": 10,
+          "MaxRps": 0
         },
         {
           "Url": "http://192.168.2.25:9090/",
-          "Weight": 5
+          "Weight": 5,
+          "MaxRps": 0
         }
       ]
     }

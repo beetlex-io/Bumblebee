@@ -72,12 +72,12 @@ namespace Bumblebee.Servers
                 if (e.Error is SocketException)
                 {
                     Code = Gateway.SOCKET_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_NET_ERROR);
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SOCKET_ERROR_CODE);
                 }
                 else
                 {
                     Code = Gateway.PROCESS_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_AGENT_PROCESS_ERROR);
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.PROCESS_ERROR_CODE);
                 }
                 OnCompleted(erea);
             }
@@ -124,6 +124,10 @@ namespace Bumblebee.Servers
 
                     if (indexof.Length == 2)
                     {
+                        if (Request.VersionNumber == "1.0" && Request.KeepAlive)
+                        {
+                            agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
+                        }
                         UrlRoute.Gateway.OnHeaderWrited(Request, Response, agentStream, Server);
                         agentStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
@@ -146,6 +150,7 @@ namespace Bumblebee.Servers
                         }
                         else
                         {
+
                             if (UrlRoute.Gateway.OnHeaderWriting(Request, Response, agentStream, Server, header.Item1, header.Item2))
                             {
                                 agentStream.Write(mBuffer, 0, indexof.Length);
@@ -185,8 +190,8 @@ namespace Bumblebee.Servers
                         }
                         else
                         {
-
-                            Request.Session.Stream.Flush();
+                            if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
+                                Request.Session.Stream.Flush();
 
                         }
                     }
@@ -215,7 +220,8 @@ namespace Bumblebee.Servers
                         }
                         else
                         {
-                            Request.Session.Stream.Flush();
+                            if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
+                                Request.Session.Stream.Flush();
                         }
                     }
                 }

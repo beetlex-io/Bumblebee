@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using BeetleX.Buffers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading;
@@ -25,6 +26,8 @@ namespace Bumblebee.ConsoleServer
 
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
+            BufferPool.BUFFER_SIZE = 1024 * 8;
+            BufferPool.POOL_MAX_SIZE = 1024 * 200;
             g = new Gateway();
             g.HttpOptions(o => { o.UrlIgnoreCase = false; });
 

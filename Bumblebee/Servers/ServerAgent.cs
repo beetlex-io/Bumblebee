@@ -18,7 +18,7 @@ namespace Bumblebee.Servers
             ServerID = GetServerID();
             Host = uri.Host;
             Port = uri.Port;
-            Available = true;
+            Available = false;
             MaxConnections = maxConnections;
             Gateway = gateway;
             for (int i = 0; i < 10; i++)
@@ -166,6 +166,7 @@ namespace Bumblebee.Servers
                 string error = $"Unable to reach {Host}:{Port} HTTP request, exceeding maximum number of connections";
                 Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                    Gateway, error, Gateway.SERVER_MAX_OF_CONNECTIONS);
+
                 Gateway.OnResponseError(erea);
             }
             else
@@ -217,15 +218,15 @@ namespace Bumblebee.Servers
             return string.Format("({0}){1}", this.Available ? 1 : 0, Uri);
         }
 
-        public ServerAgent AddUrl(string url, string hashPattern, int weight = 0)
+        public ServerAgent AddUrl(string url, string hashPattern, int weight, int maxRps)
         {
-            var route = Gateway.SetRoute(url, hashPattern).AddServer(this.Uri.ToString(), weight);
+            var route = Gateway.SetRoute(url, hashPattern).AddServer(this.Uri.ToString(), weight, maxRps);
             return this;
         }
 
-        public ServerAgent AddUrl(string url, int weight = 0)
+        public ServerAgent AddUrl(string url, int weight, int maxRps)
         {
-            return AddUrl(url, null, weight);
+            return AddUrl(url, null, weight, maxRps);
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Bumblebee.Events
 {
     public class EventRequestingArgs : EventRequestArgs
     {
-        public EventRequestingArgs(HttpRequest request, HttpResponse response,Gateway gateway) : base(request, response,gateway)
+        public EventRequestingArgs(HttpRequest request, HttpResponse response, Gateway gateway) : base(request, response, gateway)
         {
             Cancel = false;
         }
