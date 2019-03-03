@@ -2,7 +2,7 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 ## 组件部署
 组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.ConsoleServer](https://github.com/IKende/Bumblebee/tree/master/Bumblebee.ConsoleServer)编译部署即可（暂没提供编译好的版本）。`Bumblebee.ConsoleServer`提供两个配置文件描述'HttpConfig.json'和'Gateway.json'分别用于配置HTTP服务和网关对应的负载策略。
 ## 性能测试(Bumblebee vs Ocelot)
-**测试服务配置** E3 1230v2 16G windows 2008
+**测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
 
 **测试工具** ab和bombardier
 
