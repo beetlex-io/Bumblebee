@@ -1,0 +1,18 @@
+{
+  "HttpConfig": {
+    "Host": "",
+    "Port": 9090,
+    "SSL": false,
+    "CertificateFile": "",
+    "CertificatePassword": "",
+    "MaxBodyLength": 2097152,
+    "BufferSize": 8192,
+    "WebSocketMaxRPS": 30,
+    "CacheLogLength": 1000,
+    "BufferPoolMaxMemory": 2000,
+    "MaxConnections": 100000,
+    "LogToConsole": true,
+    "WriteLog": true,
+    "LogLevel": "Error"
+  }
+}
