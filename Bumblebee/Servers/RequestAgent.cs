@@ -8,10 +8,10 @@ using BeetleX;
 using System.Net.Sockets;
 using Bumblebee.Events;
 using System.Threading.Tasks;
-
+using System.Collections.Concurrent;
 namespace Bumblebee.Servers
 {
-    class RequestAgent
+    public class RequestAgent
     {
 
         public RequestAgent(TcpClientAgent clientAgent, ServerAgent serverAgent, HttpRequest request, HttpResponse response,
@@ -31,10 +31,22 @@ namespace Bumblebee.Servers
             UrlServerInfo = urlServerInfo;
             UrlRoute = urlRoute;
             mStartTime = TimeWatch.GetElapsedMilliseconds();
-
+            mRequestID = System.Threading.Interlocked.Increment(ref mRequestIDSqueue);
+            //System.Threading.Interlocked.Increment(ref RequestCount);
+            //mHistoryRequests[mRequestID] = this;
         }
 
+
+        //public static long RequestCount;
+
+        //public static ConcurrentDictionary<long, RequestAgent> mHistoryRequests = new ConcurrentDictionary<long, RequestAgent>();
+
+
+        private static long mRequestIDSqueue;
+
         private long mStartTime;
+
+        private long mRequestID;
 
         private byte[] mBuffer;
 
@@ -71,19 +83,19 @@ namespace Bumblebee.Servers
                 EventResponseErrorArgs erea;
                 if (e.Error is SocketException)
                 {
-                    Code = Gateway.SOCKET_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SOCKET_ERROR_CODE);
+                    Code = Gateway.SERVER_SOCKET_ERROR;
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_SOCKET_ERROR);
                 }
                 else
                 {
-                    Code = Gateway.PROCESS_ERROR_CODE;
-                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.PROCESS_ERROR_CODE);
+                    Code = Gateway.SERVER_PROCESS_ERROR_CODE;
+                    erea = new EventResponseErrorArgs(Request, Response, UrlRoute.Gateway, e.Error.Message, Gateway.SERVER_PROCESS_ERROR_CODE);
                 }
                 OnCompleted(erea);
             }
             else
             {
-                Code = Gateway.OTHRER_ERROR_CODE;
+                Code = Gateway.SERVER_OTHRER_ERROR_CODE;
                 if (Status > RequestStatus.None)
                 {
                     OnCompleted(null);
@@ -300,7 +312,7 @@ namespace Bumblebee.Servers
                 {
                     string error = $" request to {Server.Host}:{Server.Port} error {e_.Message}@{e_.StackTrace}";
                     EventResponseErrorArgs eventResponseErrorArgs =
-                        new EventResponseErrorArgs(request, response, UrlRoute.Gateway, error, Gateway.SERVER_NET_ERROR);
+                        new EventResponseErrorArgs(request, response, UrlRoute.Gateway, error, Gateway.SERVER_SOCKET_ERROR);
                     try
                     {
                         if (mClientAgent.Client != null)
@@ -325,6 +337,8 @@ namespace Bumblebee.Servers
                 mClientAgent.Client.ClientError = null;
                 mClientAgent.Client.DataReceive = null;
                 Server.Push(mClientAgent);
+                //System.Threading.Interlocked.Decrement(ref RequestCount);
+                //mHistoryRequests.Remove(mRequestID, out RequestAgent value);
                 try
                 {
                     UrlRoute.FilterExecuted(this.Request, this.Response, this.Server, this.Code, this.Time);

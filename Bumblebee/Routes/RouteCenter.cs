@@ -169,8 +169,7 @@ namespace Bumblebee.Routes
             item.BuildHashPattern(hashPattern);
             return item;
         }
-
-
+  
 
         public class UrlRouteAgentDictionary
         {

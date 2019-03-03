@@ -7,16 +7,14 @@ using System.Threading.Tasks;
 using Bumblebee.Events;
 using Bumblebee.Filters;
 using BeetleX.Buffers;
+using Bumblebee.Servers;
+using BeetleX.EventArgs;
 
 namespace Bumblebee
 {
     public class Gateway : IDisposable
     {
-        public const int OTHRER_ERROR_CODE = 580;
 
-        public const int SOCKET_ERROR_CODE = 581;
-
-        public const int PROCESS_ERROR_CODE = 582;
 
         public const int CLUSTER_SERVER_UNAVAILABLE = 590;
 
@@ -24,7 +22,7 @@ namespace Bumblebee
 
         public const int URL_FILTER_ERROR = 592;
 
-        public const int SERVER_NET_ERROR = 570;
+        public const int SERVER_SOCKET_ERROR = 570;
 
         public const int SERVER_AGENT_PROCESS_ERROR = 571;
 
@@ -32,6 +30,9 @@ namespace Bumblebee
 
         public const int SERVER_MAX_OF_RPS = 573;
 
+        public const int SERVER_OTHRER_ERROR_CODE = 580;
+
+        public const int SERVER_PROCESS_ERROR_CODE = 582;
 
         static Gateway()
         {
@@ -46,10 +47,32 @@ namespace Bumblebee
             Filters = new Filters.FilterCenter(this);
             Routes = new Routes.RouteCenter(this);
             Agents = new Servers.ServerCenter(this);
+            HttpServer.Options.IOQueueEnabled = true;
+            HttpServer.Options.UrlIgnoreCase = false;
             AgentMaxSocketError = 5;
+            MaxStatsUrls = 1000;
+            AgentMaxConnection = 300;
+            AgentRequestQueueLength = 2000;
+            int threads = (Environment.ProcessorCount / 2);
+            if (threads == 0)
+                threads = 1;
+            multiThreadDispatcher = new BeetleX.Dispatchs.DispatchCenter<RequestAgent>(OnExecuteRequest,
+                Math.Min(threads, 16));
+            AgentBufferSize = 1024 * 8;
+            AgentBufferPoolSize = 1024 * 200;
         }
 
+        public int AgentBufferSize { get; set; }
+
+        public int AgentBufferPoolSize { get; set; }
+
+        public int AgentMaxConnection { get; set; }
+
         public int AgentMaxSocketError { get; set; }
+
+        public int AgentRequestQueueLength { get; set; }
+
+        public int MaxStatsUrls { get; set; }
 
         public void LoadFilters(System.Reflection.Assembly assembly)
         {
@@ -105,7 +128,6 @@ namespace Bumblebee
         public Routes.RouteCenter Routes { get; private set; }
 
         public Servers.ServerCenter Agents { get; private set; }
-
 
         public Servers.ServerAgent SetServer(string host, int maxConnections = 200)
         {
@@ -208,7 +230,6 @@ namespace Bumblebee
         internal void OnRequestCompleted(Servers.RequestAgent success)
         {
             HttpServer.RequestExecuted();
-            
             if (Requested != null)
             {
                 EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.UrlRoute, success.Request, success.Response, this, success.Code, success.Server, success.Time);
@@ -220,15 +241,18 @@ namespace Bumblebee
 
         public void Open()
         {
+            BufferPool.BUFFER_SIZE = AgentBufferSize;
+            BufferPool.POOL_MAX_SIZE = AgentBufferPoolSize;
             HttpServer[GATEWAY_TAG] = this;
             HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
             {
                 LoadFilters(e.Assembly);
             };
+
             HttpServer.Open();
             HttpServer.HttpRequesting += OnRequest;
             LoadConfig();
-            HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway server started");
+            HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway server started [v:{this.GetType().Assembly.GetName().Version}]");
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);
 
         }
@@ -349,6 +373,29 @@ namespace Bumblebee
         }
 
         #endregion
+
+
+        private BeetleX.Dispatchs.DispatchCenter<RequestAgent> multiThreadDispatcher;
+
+        internal void AddRequest(RequestAgent requestAgent)
+        {
+            multiThreadDispatcher.Enqueue(requestAgent, 10);
+        }
+
+        private void OnExecuteRequest(RequestAgent requestAgent)
+        {
+            try
+            {
+                requestAgent.Execute();
+            }
+            catch (Exception e_)
+            {
+                if (HttpServer.EnableLog(LogType.Error))
+                {
+                    HttpServer.Log(LogType.Error, $"gateway {requestAgent.Request.Url} route to {requestAgent.Server.Uri} error {e_.Message}{e_.StackTrace}");
+                }
+            }
+        }
 
     }
 }

@@ -26,11 +26,7 @@ namespace Bumblebee.ConsoleServer
 
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
-            BufferPool.BUFFER_SIZE = 1024 * 8;
-            BufferPool.POOL_MAX_SIZE = 1024 * 200;
             g = new Gateway();
-            g.HttpOptions(o => { o.UrlIgnoreCase = false; });
-
             g.Open();
             return Task.CompletedTask;
         }

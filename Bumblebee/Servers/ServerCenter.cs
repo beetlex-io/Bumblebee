@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Collections.Concurrent;
 using System.Linq;
+using BeetleX.EventArgs;
 
 namespace Bumblebee.Servers
 {
@@ -12,7 +13,6 @@ namespace Bumblebee.Servers
         {
             Gateway = gateway;
             mAgents = new ConcurrentDictionary<string, ServerAgent>();
-
         }
 
         private ConcurrentDictionary<string, ServerAgent> mAgents;
@@ -57,6 +57,9 @@ namespace Bumblebee.Servers
             ServerAgent result = null;
             try
             {
+                if (maxConnections > Gateway.AgentMaxConnection)
+                    maxConnections = Gateway.AgentMaxConnection;
+
                 if (mAgents.TryGetValue(GetHost(host), out result))
                 {
                     result.MaxConnections = maxConnections;
@@ -71,7 +74,7 @@ namespace Bumblebee.Servers
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}{e_.StackTrace}");
             }
             return result;
         }
