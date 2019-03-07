@@ -17,7 +17,7 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 ## bombardier测试结果
 ![](https://i.imgur.com/6BfQVjo.png)
 ## 可运行在什么系统
-任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)
+任何运行.net core 2.1或更高版本的操作系统(linux,windows等)
 ## HTTP配置
 'HttpConfig.json'是用于配置网关的HTTP服务信息，主要包括服务端，HTTPs和可处理的最大连接数等。
 ```
