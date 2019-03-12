@@ -73,6 +73,8 @@ namespace Bumblebee.Routes
                    };
         }
 
+        public IUrlRouteGetServerHandler GetServerHandler { get; set; }
+
         public string Url { get; private set; }
 
         public string UrlPattern { get; set; }
@@ -158,7 +160,7 @@ namespace Bumblebee.Routes
         {
             get
             {
-                return mServers.GetServers;
+                return mServers.Servers;
             }
         }
 
@@ -195,17 +197,22 @@ namespace Bumblebee.Routes
 
         public UrlRouteServerGroup.UrlServerInfo GetServerAgent(HttpRequest request)
         {
-            ulong hashcode;
-            var requestHashBuilder = mRequestHashBuilder;
-            if (requestHashBuilder != null)
+            UrlRouteServerGroup.UrlServerInfo result;
+            result = GetServerHandler?.GetServer(request, this.Servers);
+            if (result == null)
             {
-                hashcode = requestHashBuilder.GetRequestHashcode(request);
-                if (hashcode == 0)
+                ulong hashcode;
+                var requestHashBuilder = mRequestHashBuilder;
+                if (requestHashBuilder != null)
+                {
+                    hashcode = requestHashBuilder.GetRequestHashcode(request);
+                    if (hashcode == 0)
+                        hashcode = (ulong)GetRequestHashcode();
+                }
+                else
                     hashcode = (ulong)GetRequestHashcode();
+                result = mServers.GetAgent(hashcode);
             }
-            else
-                hashcode = (ulong)GetRequestHashcode();
-            var result = mServers.GetAgent(hashcode);
             return result;
         }
 

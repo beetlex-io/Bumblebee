@@ -18,44 +18,44 @@ namespace Bumblebee.BaseSample
             });
             g.SetServer("http://192.168.2.19:8080").AddUrl("*", 0, 0);
             g.SetServer("http://192.168.2.19:9090").AddUrl("/home.*", 0, 0);
-            //g.Requesting += (o, e) =>
-            //{
-            //    Console.WriteLine("Requesting");
-            //    Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-            //    //e.Cancel = true;
-            //};
-            //g.AgentRequesting += (o, e) =>
-            //{
-            //    Console.WriteLine("Agent requesting:");
-            //    Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-            //    Console.WriteLine($"    url route {e.UrlRoute}");
-            //    Console.WriteLine($"    agent server {e.Server.Uri}");
-            //    //e.Cancel = true;
-            //};
-            //g.Requested += (o, e) =>
-            //{
-            //    Console.WriteLine("Requested");
-            //    Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-            //    Console.WriteLine($"    url route {e.UrlRoute}");
-            //    Console.WriteLine($"    agent server {e.Server.Uri}");
-            //    Console.WriteLine($"    response code {e.Code} use time {e.Time}ms");
-            //};
-            //g.HeaderWriting += (o, e) =>
-            //{
-            //    Console.WriteLine("Header Writing");
-            //    Console.WriteLine($"    {e.Server.Uri} {e.Name}:{e.Value}");
-            //    //if (e.Name == "Content-Type")
-            //    //{
-            //    //    e.Write(e.Name, "html");
-            //    //    e.Cancel = true;
-            //    //}
-            //};
-            //g.HeaderWrited += (o, e) =>
-            //{
-            //    e.Write("compaly", "ikende.com");
-            //    Console.WriteLine("Header Writed");
-            //    Console.WriteLine($"    {e.Server.Uri} header writed");
-            //};
+            g.Requesting += (o, e) =>
+            {
+                Console.WriteLine("Requesting");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                //e.Cancel = true;
+            };
+            g.AgentRequesting += (o, e) =>
+            {
+                Console.WriteLine("Agent requesting:");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                Console.WriteLine($"    url route {e.UrlRoute}");
+                Console.WriteLine($"    agent server {e.Server.Uri}");
+                //e.Cancel = true;
+            };
+            g.Requested += (o, e) =>
+            {
+                Console.WriteLine("Requested");
+                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
+                Console.WriteLine($"    url route {e.UrlRoute}");
+                Console.WriteLine($"    agent server {e.Server.Uri}");
+                Console.WriteLine($"    response code {e.Code} use time {e.Time}ms");
+            };
+            g.HeaderWriting += (o, e) =>
+            {
+                Console.WriteLine("Header Writing");
+                Console.WriteLine($"    {e.Server.Uri} {e.Name}:{e.Value}");
+                //if (e.Name == "Content-Type")
+                //{
+                //    e.Write(e.Name, "html");
+                //    e.Cancel = true;
+                //}
+            };
+            g.HeaderWrited += (o, e) =>
+            {
+                e.Write("compaly", "ikende.com");
+                Console.WriteLine("Header Writed");
+                Console.WriteLine($"    {e.Server.Uri} header writed");
+            };
             g.Open();
             g.AddFilter<NotFountFilter>();
             // g.Routes.GetRoute("*").SetFilter("NotFountFilter");

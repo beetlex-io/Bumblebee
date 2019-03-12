@@ -302,8 +302,19 @@ namespace Bumblebee.Servers
                     while (bodylength > 0)
                     {
                         len = request.Stream.Read(buffer, 0, buffer.Length);
-                        pipeStream.Write(buffer, 0, len);
-                        bodylength -= len;
+                        if (len == 0)
+                        {
+                            Code = Gateway.SERER_READ_STREAM_ERROR;
+                            EventResponseErrorArgs eventResponseErrorArgs =
+                                new EventResponseErrorArgs(request, response, UrlRoute.Gateway, "read request stream error", Gateway.SERVER_SOCKET_ERROR);
+                            OnCompleted(eventResponseErrorArgs);
+                            return;
+                        }
+                        else
+                        {
+                            pipeStream.Write(buffer, 0, len);
+                            bodylength -= len;
+                        }
                     }
                     Status = RequestStatus.Responding;
                     mClientAgent.Client.Stream.Flush();

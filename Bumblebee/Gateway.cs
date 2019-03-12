@@ -24,6 +24,8 @@ namespace Bumblebee
 
         public const int SERVER_SOCKET_ERROR = 570;
 
+        public const int SERER_READ_STREAM_ERROR = 574;
+
         public const int SERVER_AGENT_PROCESS_ERROR = 571;
 
         public const int SERVER_MAX_OF_CONNECTIONS = 572;

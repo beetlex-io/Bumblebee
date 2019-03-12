@@ -19,21 +19,21 @@ namespace Bumblebee.Servers
             }
         }
 
-        private List<UrlServerInfo> serverItems = new List<UrlServerInfo>();
+        private List<UrlServerInfo> mServers = new List<UrlServerInfo>();
 
         private WeightTable weightTable = new WeightTable();
 
-        public int Count => serverItems.Count;
+        public int Count => mServers.Count;
 
         public string Url { get; private set; }
 
         public UrlServerInfo[] ServerWeightTable => weightTable.ServerTable;
 
-        public UrlServerInfo[] GetServers
+        public UrlServerInfo[] Servers
         {
             get
             {
-                return serverItems.ToArray();
+                return mServers.ToArray();
             }
         }
 
@@ -48,9 +48,9 @@ namespace Bumblebee.Servers
             get
             {
                 ulong status = 0;
-                for (int i = 0; i < serverItems.Count; i++)
+                for (int i = 0; i < mServers.Count; i++)
                 {
-                    var item = serverItems[i];
+                    var item = mServers[i];
                     if (item.Agent.Available)
                         status |= item.ID;
                 }
@@ -64,9 +64,9 @@ namespace Bumblebee.Servers
             if (Available)
             {
                 WeightTable wt = new WeightTable();
-                for (int i = 0; i < serverItems.Count; i++)
+                for (int i = 0; i < mServers.Count; i++)
                 {
-                    var item = serverItems[i];
+                    var item = mServers[i];
                     if (item.Agent.Available)
                     {
                         wt.Add(item);
@@ -89,7 +89,7 @@ namespace Bumblebee.Servers
                 weight = 10;
             if (weight < 0)
                 weight = 0;
-            var item = serverItems.Find(i => i.Agent.Uri.ToString() == host);
+            var item = mServers.Find(i => i.Agent.Uri.ToString() == host);
             if (item != null)
             {
                 item.Weight = weight;
@@ -111,7 +111,7 @@ namespace Bumblebee.Servers
                     serverItem.ID = id;
                     serverItem.Weight = weight;
                     serverItem.MaxRPS = maxRps;
-                    serverItems.Add(serverItem);
+                    mServers.Add(serverItem);
                     Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
                 }
 
@@ -122,13 +122,13 @@ namespace Bumblebee.Servers
         public void Remove(string host)
         {
             host = ServerCenter.GetHost(host);
-            for (int i = 0; i < serverItems.Count; i++)
+            for (int i = 0; i < mServers.Count; i++)
             {
-                if (serverItems[i].Agent.Uri.ToString() == host)
+                if (mServers[i].Agent.Uri.ToString() == host)
                 {
-                    ulong id = serverItems[i].ID;
-                    serverItems.RemoveAt(i);
-                    if (serverItems.Count > 0)
+                    ulong id = mServers[i].ID;
+                    mServers.RemoveAt(i);
+                    if (mServers.Count > 0)
                     {
                         RefreshWeightTable();
                     }

@@ -29,6 +29,8 @@ namespace Bumblebee.Servers
             }
             mConnections = 10;
             mCount = 10;
+
+       
             this.Available = false;
 
             mQueueWaitMaxLength = gateway.AgentRequestQueueLength;
@@ -204,6 +206,7 @@ namespace Bumblebee.Servers
                     Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                        Gateway, error, Gateway.SERVER_MAX_OF_CONNECTIONS);
                     Gateway.OnResponseError(erea);
+                   
                 }
                 else
                 {
