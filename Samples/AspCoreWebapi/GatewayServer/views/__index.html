@@ -1,0 +1,23 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script src="__jquery.js"></script>
+</head>
+<body>
+    <p><input id="url" type="text" value="/api/values" /><button onclick="test($('#url').val())">测试</button> </p>
+    <div id="result">
+
+    </div>
+    <script>
+        function test(url) {
+            $.get(url, function (result) {
+                var data = "<p>" + result + "</p>";
+                $(data).appendTo("#result");
+            });
+        }
+    </script>
+</body>
+</html>
