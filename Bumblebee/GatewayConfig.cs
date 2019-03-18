@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Bumblebee
@@ -10,6 +11,9 @@ namespace Bumblebee
         public List<ServerInfo> Servers { get; set; } = new List<ServerInfo>();
 
         public List<UrlConfig> Urls { get; set; } = new List<UrlConfig>();
+
+
+        public PluginConfig PluginConfig { get; set; } = new PluginConfig();
 
         public void From(Gateway gateway)
         {
@@ -26,11 +30,12 @@ namespace Bumblebee
                 urlConfig.From(route);
                 Urls.Add(urlConfig);
             }
-
+            this.PluginConfig = new PluginConfig(gateway.Pluginer);
         }
 
         public void To(Gateway gateway)
         {
+            this.PluginConfig.To(gateway.Pluginer);
             foreach (var server in Servers)
             {
                 gateway.SetServer(server.Uri, server.MaxConnections);
@@ -65,9 +70,10 @@ namespace Bumblebee
 
         public class UrlConfig
         {
+
             public List<RouteServer> Servers { get; set; } = new List<RouteServer>();
 
-            public List<string> Filters { get; set; } = new List<string>();
+            public PluginConfig PluginConfig { get; set; } = new PluginConfig();
 
             public string Url { get; set; }
 
@@ -86,10 +92,7 @@ namespace Bumblebee
             {
                 Url = urlRoute.Url;
                 HashPattern = urlRoute.HashPattern;
-                foreach (var filter in urlRoute.FilterNames)
-                {
-                    Filters.Add(filter);
-                }
+                this.PluginConfig = new PluginConfig(urlRoute.Pluginer);
                 foreach (var server in urlRoute.Servers)
                 {
                     Servers.Add(new RouteServer { Url = server.Agent.Uri.ToString(), Weight = server.Weight, MaxRps = server.MaxRPS });
@@ -99,11 +102,9 @@ namespace Bumblebee
             public void To(Gateway gateway)
             {
                 gateway.RemoveRoute(Url);
+
                 var result = gateway.SetRoute(Url, HashPattern);
-                foreach (var filter in Filters)
-                {
-                    result.SetFilter(filter);
-                }
+                this.PluginConfig.To(result.Pluginer);
                 foreach (var server in Servers)
                 {
                     result.AddServer(server.Url, server.Weight, server.MaxRps);
@@ -140,6 +141,69 @@ namespace Bumblebee
             else
             {
                 return null;
+            }
+        }
+
+
+
+    }
+
+    public class PluginConfig
+    {
+        public PluginConfig()
+        {
+
+        }
+
+        public PluginConfig(Plugins.Pluginer pluginer)
+        {
+            Requesting = (from a in pluginer.RequestingInfos select a.Name).ToArray();
+            AgentRequesting = (from a in pluginer.AgentRequestingInfos select a.Name).ToArray();
+            HeaderWriting = (from a in pluginer.HeaderWritingInfos select a.Name).ToArray();
+            Requested = (from a in pluginer.RequestedInfos select a.Name).ToArray();
+            ResponseError = (from a in pluginer.ResponseErrorInfos select a.Name).ToArray();
+        }
+
+        public string[] Requesting { get; set; }
+
+        public string[] AgentRequesting { get; set; }
+
+        public string[] HeaderWriting { get; set; }
+
+        public string[] Requested { get; set; }
+
+        public string[] ResponseError { get; set; }
+
+        public void To(Plugins.Pluginer pluginer)
+        {
+            if (Requesting != null)
+            {
+                foreach (var item in Requesting)
+                    pluginer.SetRequesting(item);
+            }
+
+            if (AgentRequesting != null)
+            {
+                foreach (var item in AgentRequesting)
+                    pluginer.SetAgentRequesting(item);
+            }
+
+            if (HeaderWriting != null)
+            {
+                foreach (var item in HeaderWriting)
+                    pluginer.SetHeaderWriting(item);
+            }
+
+            if (Requested != null)
+            {
+                foreach (var item in Requested)
+                    pluginer.SetRequested(item);
+            }
+
+            if (ResponseError != null)
+            {
+                foreach (var item in ResponseError)
+                    pluginer.SetResponseError(item);
             }
         }
 

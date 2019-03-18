@@ -41,6 +41,7 @@ namespace Bumblebee.Servers
 
         //public static ConcurrentDictionary<long, RequestAgent> mHistoryRequests = new ConcurrentDictionary<long, RequestAgent>();
 
+        private Header mResultHeader = new Header();
 
         private static long mRequestIDSqueue;
 
@@ -140,7 +141,8 @@ namespace Bumblebee.Servers
                         {
                             agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
                         }
-                        UrlRoute.Gateway.OnHeaderWrited(Request, Response, agentStream, Server);
+                        UrlRoute.Pluginer.HeaderWriting(Request, Response, mResultHeader);
+                        mResultHeader.Write(agentStream);
                         agentStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
                         return;
@@ -158,15 +160,16 @@ namespace Bumblebee.Servers
                         }
                         if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
                         {
-                            agentStream.Write(Gateway.GATEWAY_SERVER_HEDER, 0, Gateway.GATEWAY_SERVER_HEDER.Length);
+                            //agentStream.Write(Gateway.GATEWAY_SERVER_HEDER, 0, Gateway.GATEWAY_SERVER_HEDER.Length);
+                            mResultHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
                         }
                         else
                         {
-
-                            if (UrlRoute.Gateway.OnHeaderWriting(Request, Response, agentStream, Server, header.Item1, header.Item2))
-                            {
-                                agentStream.Write(mBuffer, 0, indexof.Length);
-                            }
+                            mResultHeader.Add(header.Item1, header.Item2);
+                            //if (UrlRoute.Gateway.OnHeaderWriting(Request, Response, agentStream, Server, header.Item1, header.Item2))
+                            //{
+                            //    agentStream.Write(mBuffer, 0, indexof.Length);
+                            //}
                         }
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
@@ -352,7 +355,7 @@ namespace Bumblebee.Servers
                 //mHistoryRequests.Remove(mRequestID, out RequestAgent value);
                 try
                 {
-                    UrlRoute.FilterExecuted(this.Request, this.Response, this.Server, this.Code, this.Time);
+                    UrlRoute.Pluginer.Requested(this);
                     Completed?.Invoke(this);
                 }
                 catch (Exception e_)

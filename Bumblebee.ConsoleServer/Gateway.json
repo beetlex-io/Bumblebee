@@ -1,12 +1,10 @@
 ﻿{
   "Servers": [
     {
-      "Uri": "http://192.168.2.19:9090/",
-      "MaxConnections": 1000
+      "Uri": "http://192.168.2.26:9090/"
     },
     {
-      "Uri": "http://192.168.2.25:9090/",
-      "MaxConnections": 1000
+      "Uri": "http://192.168.2.25:9090/"
     }
   ],
   "Urls": [
@@ -15,14 +13,10 @@
       "HashPattern": null,
       "Servers": [
         {
-          "Url": "http://192.168.2.19:9090/",
-          "Weight": 10,
-          "MaxRps": 0
+          "Url": "http://192.168.2.26:9090/"
         },
         {
-          "Url": "http://192.168.2.25:9090/",
-          "Weight": 5,
-          "MaxRps": 0
+          "Url": "http://192.168.2.25:9090/"
         }
       ]
     }

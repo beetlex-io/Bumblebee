@@ -8,14 +8,14 @@ namespace Bumblebee
 {
     public class BadGateway : InnerErrorResult
     {
-        public BadGateway(string errormsg) : base("502", "Bad Gateway", new Exception(errormsg), false)
+        public BadGateway(string errormsg, int code = 502) : base(code.ToString(), "Bad Gateway", new Exception(errormsg), false)
         {
 
         }
 
         public override string ContentType => "text/html; charset=utf-8";
 
-        public BadGateway(Exception error) : base("502", "Bad Gateway", error, false)
+        public BadGateway(Exception error, int code = 502) : base(code.ToString(), "Bad Gateway", error, false)
         {
 
         }
@@ -39,7 +39,7 @@ namespace Bumblebee
                 stream.WriteLine(SourceCode);
                 stream.Write("</p>");
             }
-            
+
             stream.WriteLine("  <hr style=\"margin: 0px; \" /> <p>Bumblebee webapi gateway (<a href=\"https://github.com/ikende\" target=\"_blank\">github.com</a>)</p>");
             stream.WriteLine("<body>");
             stream.WriteLine("</html>");

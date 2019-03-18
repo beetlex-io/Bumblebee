@@ -1,5 +1,6 @@
 ﻿using BeetleX.FastHttpApi;
-using Bumblebee.Filters;
+
+using Bumblebee.Plugins;
 using Bumblebee.Servers;
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,6 @@ namespace Bumblebee.Routes
         public UrlRoute(Gateway gateway, string url)
         {
             Gateway = gateway;
-            Filters = new List<IRequestFilter>();
             Url = url;
             UrlPattern = url;
 
@@ -26,7 +26,7 @@ namespace Bumblebee.Routes
                 UrlPattern = values[1];
             }
             mServers = new Servers.UrlRouteServerGroup(gateway, url);
-
+            this.Pluginer = new Pluginer(Gateway, this);
         }
 
         public void BuildHashPattern(string hashPattern = null)
@@ -58,88 +58,13 @@ namespace Bumblebee.Routes
 
         public string Host { get; private set; }
 
-        private List<string> mFilterNames = new List<string>();
-
-        public string[] FilterNames => mFilterNames.ToArray();
-
-        public IEnumerable<FilterInfo> GetFiltersInfo()
-        {
-            return from a in RequestFilters
-                   select new FilterInfo
-                   {
-                       Assembly = a.GetType().Assembly.GetName().Name,
-                       Name = a.Name,
-                       Version = a.GetType().Assembly.GetName().Version.ToString()
-                   };
-        }
-
-        public IUrlRouteGetServerHandler GetServerHandler { get; set; }
+        public IGetServerHandler GetServerHandler { get; set; }
 
         public string Url { get; private set; }
 
         public string UrlPattern { get; set; }
 
         public Gateway Gateway { get; internal set; }
-
-        public List<IRequestFilter> Filters { get; private set; }
-
-        public void RemoveFilter(string name)
-        {
-            for (int i = 0; i < Filters.Count; i++)
-            {
-                if (Filters[i].Name == name)
-                {
-                    Filters.RemoveAt(i);
-                    mFilterNames.Remove(name);
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"{Url} route remove {name} filter");
-                    mRequestFilters = Filters.ToArray();
-                    return;
-                }
-            }
-        }
-
-        public void SetFilter(string name)
-        {
-            IRequestFilter filter = Gateway.Filters.GetFilter(name);
-            if (filter == null)
-            {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"{Url} route add filter error {name} filter not found!");
-                return;
-            }
-            if (!mFilterNames.Contains(name))
-                mFilterNames.Add(name);
-            LoadFilter(filter);
-
-        }
-
-        public void ReloadFilters()
-        {
-            foreach (string item in mFilterNames.ToArray())
-            {
-                SetFilter(item);
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route {Url} load {item} filter success");
-            }
-        }
-
-        private void LoadFilter(IRequestFilter filter)
-        {
-
-            for (int i = 0; i < Filters.Count; i++)
-            {
-                if (Filters[i].Name == filter.Name)
-                {
-                    Filters[i] = filter;
-                    return;
-                }
-            }
-            Filters.Add(filter);
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"{Url} route load {filter.Name} filter");
-            mRequestFilters = Filters.ToArray();
-        }
-
-        private IRequestFilter[] mRequestFilters = new IRequestFilter[0];
-
-        public IRequestFilter[] RequestFilters => mRequestFilters;
 
         public string[] ServerWeightTable
         {
@@ -149,12 +74,9 @@ namespace Bumblebee.Routes
             }
         }
 
-        public IList<IRequestFilter> GetFilters()
-        {
-            return mRequestFilters;
-        }
-
         private UrlRouteServerGroup mServers;
+
+        public Pluginer Pluginer { get; private set; }
 
         public UrlRouteServerGroup.UrlServerInfo[] Servers
         {
@@ -198,7 +120,7 @@ namespace Bumblebee.Routes
         public UrlRouteServerGroup.UrlServerInfo GetServerAgent(HttpRequest request)
         {
             UrlRouteServerGroup.UrlServerInfo result;
-            result = GetServerHandler?.GetServer(request, this.Servers);
+            result = GetServerHandler?.GetServer(Gateway, request, this.Servers);
             if (result == null)
             {
                 ulong hashcode;
@@ -363,28 +285,5 @@ namespace Bumblebee.Routes
             Header,
             QueryString,
         }
-
-        internal void FilterExecuted(HttpRequest request, HttpResponse response, ServerAgent server, int code, long useTime)
-        {
-            var filters = RequestFilters;
-            if (filters != null)
-            {
-                for (int i = 0; i < filters.Length; i++)
-                {
-                    try
-                    {
-                        filters[i].Executed(Gateway, request, response, server, code, useTime);
-                    }
-                    catch (Exception e_)
-                    {
-                        if (Gateway.HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
-                        {
-                            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {request.Url} executed {filters[i].Name} error {e_.Message} {e_.StackTrace}");
-                        }
-                    }
-                }
-            }
-        }
-
     }
 }

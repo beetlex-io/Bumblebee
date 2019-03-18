@@ -57,7 +57,8 @@ namespace Bumblebee.Servers
             ServerAgent result = null;
             try
             {
-                if (maxConnections > Gateway.AgentMaxConnection)
+                
+                if (maxConnections > Gateway.AgentMaxConnection || maxConnections==0)
                     maxConnections = Gateway.AgentMaxConnection;
 
                 if (mAgents.TryGetValue(GetHost(host), out result))

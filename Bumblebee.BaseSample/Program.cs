@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Reflection;
 using BeetleX.FastHttpApi;
+using Bumblebee.Events;
 using Bumblebee.Servers;
 
 namespace Bumblebee.BaseSample
@@ -16,69 +18,84 @@ namespace Bumblebee.BaseSample
                 h.LogToConsole = true;
 
             });
-            g.SetServer("http://192.168.2.19:8080").AddUrl("*", 0, 0);
-            g.SetServer("http://192.168.2.19:9090").AddUrl("/home.*", 0, 0);
-            g.Requesting += (o, e) =>
-            {
-                Console.WriteLine("Requesting");
-                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-                //e.Cancel = true;
-            };
-            g.AgentRequesting += (o, e) =>
-            {
-                Console.WriteLine("Agent requesting:");
-                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-                Console.WriteLine($"    url route {e.UrlRoute}");
-                Console.WriteLine($"    agent server {e.Server.Uri}");
-                //e.Cancel = true;
-            };
-            g.Requested += (o, e) =>
-            {
-                Console.WriteLine("Requested");
-                Console.WriteLine($"    Request url ${e.Request.BaseUrl}");
-                Console.WriteLine($"    url route {e.UrlRoute}");
-                Console.WriteLine($"    agent server {e.Server.Uri}");
-                Console.WriteLine($"    response code {e.Code} use time {e.Time}ms");
-            };
-            g.HeaderWriting += (o, e) =>
-            {
-                Console.WriteLine("Header Writing");
-                Console.WriteLine($"    {e.Server.Uri} {e.Name}:{e.Value}");
-                //if (e.Name == "Content-Type")
-                //{
-                //    e.Write(e.Name, "html");
-                //    e.Cancel = true;
-                //}
-            };
-            g.HeaderWrited += (o, e) =>
-            {
-                e.Write("compaly", "ikende.com");
-                Console.WriteLine("Header Writed");
-                Console.WriteLine($"    {e.Server.Uri} header writed");
-            };
+            g.LoadPlugin(typeof(Program).Assembly);
+            g.SetServer("http://localhost:5000").AddUrl("*", 0, 0);
+            g.Routes.Default.Pluginer.SetRequesting("RequestingTest");
             g.Open();
-            g.AddFilter<NotFountFilter>();
-            // g.Routes.GetRoute("*").SetFilter("NotFountFilter");
-
-
             Console.Read();
         }
 
-        public class NotFountFilter : Filters.IRequestFilter
+
+
+    }
+
+
+    public class RequestingTest : Plugins.IRequestingHandler
+    {
+        public string Name => "RequestingTest";
+
+        public string Description => "RequestingTest";
+
+        public void Execute(EventRequestingArgs e)
         {
-            public string Name => "NotFountFilter";
-
-            public void Executed(Gateway gateway, HttpRequest request, HttpResponse response, ServerAgent server, int code, long useTime)
-            {
-
-            }
-
-            public bool Executing(Gateway gateway, HttpRequest request, HttpResponse response)
-            {
-                gateway.Response(response, new NotFoundResult("test"));
-                return false;
-            }
+            e.Gateway.Response(e.Response, new NotFoundResult("Gateway not found!"));
+            e.Cancel = true;
         }
 
+        public void Init(Gateway gateway, Assembly assembly)
+        {
+
+        }
+    }
+
+    public class AgentRequestingTest : Plugins.IAgentRequestingHandler
+    {
+        public string Name => "AgentRequestingTest";
+
+        public string Description => "AgentRequestingTest";
+
+        public void Execute(EventAgentRequestingArgs e)
+        {
+            Console.WriteLine("AgentRequestingTest");
+        }
+
+        public void Init(Gateway gateway, Assembly assembly)
+        {
+
+        }
+    }
+
+    public class HeaderWritingTest : Plugins.IHeaderWritingHandler
+    {
+        public string Name => "HeaderWritingTest";
+
+        public string Description => "HeaderWritingTest";
+
+        public void Execute(EventHeaderWritingArgs e)
+        {
+            e.Header.Add("username", "henryfan");
+        }
+
+        public void Init(Gateway gateway, Assembly assembly)
+        {
+
+        }
+    }
+
+    public class RequestedTest : Plugins.IRequestedHandler
+    {
+        public string Name => "RequestedTest";
+
+        public string Description => "RequestedTest";
+
+        public void Execute(EventRequestCompletedArgs e)
+        {
+            Console.WriteLine("RequestedTest");
+        }
+
+        public void Init(Gateway gateway, Assembly assembly)
+        {
+
+        }
     }
 }

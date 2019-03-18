@@ -32,17 +32,17 @@ namespace Bumblebee.Routes
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway update route url data table");
         }
 
-        public void ReloadFilters()
+        public void ReloadPlugin()
         {
             try
             {
                 foreach (var item in mUrlRoutes.Values)
-                    item.ReloadFilters();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route url load filters");
+                    item.Pluginer.Reload();
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route reload plugin");
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route url load filters error {e_.Message}");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route reload plugin error {e_.Message} {e_.StackTrace}");
             }
         }
 

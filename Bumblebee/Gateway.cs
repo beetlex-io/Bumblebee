@@ -5,10 +5,11 @@ using BeetleX.FastHttpApi;
 using System.Threading;
 using System.Threading.Tasks;
 using Bumblebee.Events;
-using Bumblebee.Filters;
+using Bumblebee.Plugins;
 using BeetleX.Buffers;
 using Bumblebee.Servers;
 using BeetleX.EventArgs;
+using Bumblebee.Routes;
 
 namespace Bumblebee
 {
@@ -46,9 +47,10 @@ namespace Bumblebee
         public Gateway()
         {
             HttpServer = new HttpApiServer();
-            Filters = new Filters.FilterCenter(this);
             Routes = new Routes.RouteCenter(this);
             Agents = new Servers.ServerCenter(this);
+            this.PluginCenter = new PluginCenter(this);
+            this.Pluginer = new Pluginer(this, null);
             HttpServer.Options.IOQueueEnabled = true;
             HttpServer.Options.UrlIgnoreCase = false;
             AgentMaxSocketError = 5;
@@ -62,6 +64,7 @@ namespace Bumblebee
                 Math.Min(threads, 16));
             AgentBufferSize = 1024 * 8;
             AgentBufferPoolSize = 1024 * 200;
+
         }
 
         public int AgentBufferSize { get; set; }
@@ -76,25 +79,13 @@ namespace Bumblebee
 
         public int MaxStatsUrls { get; set; }
 
-        public void LoadFilters(System.Reflection.Assembly assembly)
+        public PluginCenter PluginCenter { get; private set; }
+
+        public void LoadPlugin(System.Reflection.Assembly assembly)
         {
-            foreach (var t in assembly.GetTypes())
-            {
-                try
-                {
-                    if (t.GetInterface("IRequestFilter") != null && !t.IsAbstract && t.IsClass)
-                    {
-                        var filter = (IRequestFilter)Activator.CreateInstance(t);
-                        Filters.Add(filter);
-                        HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] filter success");
-                    }
-                }
-                catch (Exception e_)
-                {
-                    HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} filter error {e_.Message} {e_.StackTrace}");
-                }
-            }
-            Routes.ReloadFilters();
+            this.PluginCenter.Load(assembly);
+            Routes.ReloadPlugin();
+            this.Pluginer.Reload();
         }
 
         private System.Threading.Timer mVerifyTimer;
@@ -123,9 +114,9 @@ namespace Bumblebee
             }
         }
 
-        public HttpApiServer HttpServer { get; internal set; }
+        public Pluginer Pluginer { get; private set; }
 
-        public Filters.FilterCenter Filters { get; private set; }
+        public HttpApiServer HttpServer { get; internal set; }
 
         public Routes.RouteCenter Routes { get; private set; }
 
@@ -156,12 +147,6 @@ namespace Bumblebee
             return this;
         }
 
-        public Gateway AddFilter<T>() where T : Filters.IRequestFilter, new()
-        {
-            Filters.Add<T>();
-            return this;
-        }
-
         public Gateway HttpOptions(Action<HttpOptions> handler)
         {
             handler?.Invoke(HttpServer.Options);
@@ -177,7 +162,7 @@ namespace Bumblebee
             {
                 var ip = e.Request.RemoteIPAddress;
                 HttpServer.RequestExecting();
-                if (OnRequesting(e.Request, e.Response))
+                if (this.Pluginer.Requesting(e.Request, e.Response))
                 {
                     var item = Routes.GetAgent(e.Request);
                     if (item == null)
@@ -189,7 +174,10 @@ namespace Bumblebee
                     }
                     else
                     {
-                        item.Execute(e.Request, e.Response);
+                        if (item.UrlRoute.Pluginer.Requesting(e.Request, e.Response))
+                        {
+                            item.Execute(e.Request, e.Response);
+                        }
                     }
                 }
             }
@@ -222,24 +210,20 @@ namespace Bumblebee
             }
 
             HttpServer.RequestExecuted();
-            ResponseError?.Invoke(this, e);
+            // ResponseError?.Invoke(this, e);
+            this.Pluginer.ResponseError(e);
             if (e.Result != null)
             {
                 e.Response.Result(e.Result);
             }
         }
 
+
         internal void OnRequestCompleted(Servers.RequestAgent success)
         {
             HttpServer.RequestExecuted();
-            if (Requested != null)
-            {
-                EventRequestCompletedArgs e = new EventRequestCompletedArgs(success.UrlRoute, success.Request, success.Response, this, success.Code, success.Server, success.Time);
-                Requested(this, e);
-            }
+            Pluginer.Requested(success);
         }
-
-        public event EventHandler<EventRequestCompletedArgs> Requested;
 
         public void Open()
         {
@@ -248,7 +232,7 @@ namespace Bumblebee
             HttpServer[GATEWAY_TAG] = this;
             HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
             {
-                LoadFilters(e.Assembly);
+                LoadPlugin(e.Assembly);
             };
 
             HttpServer.Open();
@@ -264,37 +248,7 @@ namespace Bumblebee
             ((IDisposable)HttpServer).Dispose();
         }
 
-        public event EventHandler<EventResponseErrorArgs> ResponseError;
 
-        public event EventHandler<EventRequestingArgs> Requesting;
-
-        public event EventHandler<EventAgentRequestingArgs> AgentRequesting;
-
-        protected bool OnRequesting(HttpRequest request, HttpResponse response)
-        {
-
-            if (Requesting != null)
-            {
-                EventRequestingArgs e = new EventRequestingArgs(request, response, this);
-                e.Cancel = false;
-                Requesting?.Invoke(this, e);
-                return !e.Cancel;
-            }
-            return true;
-        }
-
-
-        internal bool OnAgentRequesting(HttpRequest request, HttpResponse response, Servers.ServerAgent server, Routes.UrlRoute urlRoute)
-        {
-            if (AgentRequesting != null)
-            {
-                EventAgentRequestingArgs e = new EventAgentRequestingArgs(request, response, this, server, urlRoute);
-                e.Cancel = false;
-                AgentRequesting?.Invoke(this, e);
-                return !e.Cancel;
-            }
-            return true;
-        }
 
         public void SaveConfig()
         {
@@ -343,38 +297,6 @@ namespace Bumblebee
         {
             return (Gateway)httpApiServer[GATEWAY_TAG];
         }
-
-        #region header write events
-
-        public event EventHandler<Events.EventHeaderWriter> HeaderWrited;
-
-        internal void OnHeaderWrited(HttpRequest request, HttpResponse response, PipeStream stream, Servers.ServerAgent server)
-        {
-            if (HeaderWrited != null)
-            {
-                Events.EventHeaderWriter eventHeaderWriter = new EventHeaderWriter(request, response, this, stream);
-                eventHeaderWriter.Server = server;
-                HeaderWrited?.Invoke(this, eventHeaderWriter);
-            }
-        }
-
-        public event EventHandler<Events.EventHeaderWriting> HeaderWriting;
-
-        internal bool OnHeaderWriting(HttpRequest request, HttpResponse response, PipeStream stream, Servers.ServerAgent server, string name, string value)
-        {
-            if (HeaderWriting != null)
-            {
-                Events.EventHeaderWriting eventHeaderWriting = new EventHeaderWriting(request, response, this, stream);
-                eventHeaderWriting.Name = name;
-                eventHeaderWriting.Value = value;
-                eventHeaderWriting.Server = server;
-                HeaderWriting?.Invoke(this, eventHeaderWriting);
-                return !eventHeaderWriting.Cancel;
-            }
-            return true;
-        }
-
-        #endregion
 
 
         private BeetleX.Dispatchs.DispatchCenter<RequestAgent> multiThreadDispatcher;
