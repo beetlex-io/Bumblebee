@@ -1,7 +1,12 @@
 Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
 ![](https://i.imgur.com/uIb9y7I.jpg)
 ## 组件部署
-组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.ConsoleServer](https://github.com/IKende/Bumblebee/tree/master/Bumblebee.ConsoleServer)编译部署即可（暂没提供编译好的版本）。`Bumblebee.ConsoleServer`提供两个配置文件描述'HttpConfig.json'和'Gateway.json'分别用于配置HTTP服务和网关对应的负载策略。
+组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.ConsoleServer](https://github.com/IKende/Bumblebee/tree/master/bin)下载需要版本的zip即可。`Bumblebee.ConsoleServer`提供两个配置文件描述'HttpConfig.json'和'Gateway.json'分别用于配置HTTP服务和网关对应的负载策略。
+## 系统要求
+任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
+## 运行网关
+- windows `run.bat 或 dotnet Bumblebee.ConsoleServer.dll `
+- linux `./run.sh 或 dotnet Bumblebee.ConsoleServer.dll`
 ## 性能测试(Bumblebee vs Ocelot)
 **测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
 
