@@ -7,22 +7,7 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 ## 运行网关
 - windows `run.bat 或 dotnet Bumblebee.ConsoleServer.dll `
 - linux `./run.sh 或 dotnet Bumblebee.ConsoleServer.dll`
-## 性能测试(Bumblebee vs Ocelot)
-**测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
 
-**测试工具** ab和bombardier
-
-**测试代码** [https://github.com/IKende/Bumblebee/tree/master/BumblebeeVSOcelot](https://github.com/IKende/Bumblebee/tree/master/BumblebeeVSOcelot)
-
-
-**测试内容** 分别启用500,1000和2000个连接进行请求并发测试
-
-## ab测试结果
-![](https://i.imgur.com/rE97kRQ.png)
-## bombardier测试结果
-![](https://i.imgur.com/6BfQVjo.png)
-## 可运行在什么系统
-任何运行.net core 2.1或更高版本的操作系统(linux,windows等)
 ## HTTP配置
 'HttpConfig.json'是用于配置网关的HTTP服务信息，主要包括服务端，HTTPs和可处理的最大连接数等。
 ```
@@ -92,3 +77,17 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 - **q:name**
 使用某个QueryString值作为一致性转发
 
+## 性能测试(Bumblebee vs Ocelot)
+**测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
+
+**测试工具** ab和bombardier
+
+**测试代码** [https://github.com/IKende/Bumblebee/tree/master/BumblebeeVSOcelot](https://github.com/IKende/Bumblebee/tree/master/BumblebeeVSOcelot)
+
+
+**测试内容** 分别启用500,1000和2000个连接进行请求并发测试
+
+## ab测试结果
+![](https://i.imgur.com/rE97kRQ.png)
+## bombardier测试结果
+![](https://i.imgur.com/6BfQVjo.png)
