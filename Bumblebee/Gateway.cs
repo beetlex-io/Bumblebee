@@ -161,12 +161,20 @@ namespace Bumblebee
             try
             {
                 var ip = e.Request.RemoteIPAddress;
+                if (HttpServer.EnableLog(LogType.Info))
+                {
+                    HttpServer.Log(LogType.Info, $"gateway {e.Request.Method} {e.Request.Url} request from {ip}");
+                }
                 HttpServer.RequestExecting();
                 if (this.Pluginer.Requesting(e.Request, e.Response))
                 {
                     var item = Routes.GetAgent(e.Request);
                     if (item == null)
                     {
+                        if (HttpServer.EnableLog(LogType.Info))
+                        {
+                            HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request cluster server unavailable");
+                        }
                         EventResponseErrorArgs error = new EventResponseErrorArgs(
                             e.Request, e.Response, this, "Cluster server unavailable", Gateway.CLUSTER_SERVER_UNAVAILABLE
                             );
@@ -176,7 +184,18 @@ namespace Bumblebee
                     {
                         if (item.UrlRoute.Pluginer.Requesting(e.Request, e.Response))
                         {
+                            if (HttpServer.EnableLog(LogType.Info))
+                            {
+                                HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing");
+                            }
                             item.Execute(e.Request, e.Response);
+                        }
+                        else
+                        {
+                            if (HttpServer.EnableLog(LogType.Info))
+                            {
+                                HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing cancel!");
+                            }
                         }
                     }
                 }
@@ -316,7 +335,7 @@ namespace Bumblebee
             {
                 if (HttpServer.EnableLog(LogType.Error))
                 {
-                    HttpServer.Log(LogType.Error, $"gateway {requestAgent.Request.Url} route to {requestAgent.Server.Uri} error {e_.Message}{e_.StackTrace}");
+                    HttpServer.Log(LogType.Error, $"gateway {requestAgent.Request.RemoteIPAddress} {requestAgent.Request.Method} {requestAgent.Request.Url} route to {requestAgent.Server.Uri} error {e_.Message}{e_.StackTrace}");
                 }
             }
         }

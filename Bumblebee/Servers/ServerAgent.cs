@@ -204,20 +204,23 @@ namespace Bumblebee.Servers
                     Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                        Gateway, error, Gateway.SERVER_MAX_OF_CONNECTIONS);
                     Gateway.OnResponseError(erea);
+                    if (request.Server.EnableLog(LogType.Info))
+                    {
+                        request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error  exceeding maximum number of connections");
+                    }
                 }
                 else
                 {
                     RequestAgent agent = new RequestAgent(clientAgent, this, request, response, serverInfo, urlRoute);
                     agent.Completed = OnCompleted;
                     Gateway.AddRequest(agent);
-                    //agent.Execute();
                 }
             }
             catch (Exception e_)
             {
                 if (urlRoute.Gateway.HttpServer.EnableLog(LogType.Error))
                 {
-                    urlRoute.Gateway.HttpServer.Log(LogType.Error, $"gateway {request.Url} route to {Uri} error {e_.Message}{e_.StackTrace}");
+                    urlRoute.Gateway.HttpServer.Log(LogType.Error, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error {e_.Message}{e_.StackTrace}");
                 }
             }
         }
@@ -235,11 +238,6 @@ namespace Bumblebee.Servers
                 else
                 {
                     OnSocketError(false);
-                }
-                if (Gateway.HttpServer.EnableLog(LogType.Info))
-                {
-                    Gateway.HttpServer.Log(LogType.Info,
-                        $"gateway {requestAgent.Request.RemoteIPAddress} {requestAgent.Request.Method} {requestAgent.Request.Url} request to {Host}:{Port} completed code {requestAgent.Code}");
                 }
             }
             finally

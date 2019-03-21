@@ -1,4 +1,5 @@
-﻿using BeetleX.FastHttpApi;
+﻿using BeetleX.EventArgs;
+using BeetleX.FastHttpApi;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -22,6 +23,11 @@ namespace Bumblebee.Routes
             var agent = UrlRoute.GetServerAgent(request);
             if (agent == null)
             {
+                if (request.Server.EnableLog(LogType.Info))
+                {
+                    request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server unavailable");
+                }
+
                 Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(
                     request, response, UrlRoute.Gateway, $"The {Url} url route server unavailable", Gateway.URL_NODE_SERVER_UNAVAILABLE);
                 UrlRoute.Gateway.OnResponseError(erea);
@@ -42,6 +48,17 @@ namespace Bumblebee.Routes
                         Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                            UrlRoute.Gateway, error, Gateway.SERVER_MAX_OF_RPS);
                         UrlRoute.Gateway.OnResponseError(erea);
+                        if (request.Server.EnableLog(LogType.Info))
+                        {
+                            request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding maximum number of RPS");
+                        }
+                    }
+                }
+                else
+                {
+                    if (request.Server.EnableLog(LogType.Info))
+                    {
+                        request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding cancel");
                     }
                 }
             }

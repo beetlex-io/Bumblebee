@@ -1,24 +1,21 @@
 ﻿{
   "Servers": [
     {
-      "Uri": "http://192.168.2.26:9090/"
-    },
-    {
-      "Uri": "http://192.168.2.25:9090/"
+      "Uri": "http://localhost/",
+      "MaxConnections": 300
     }
   ],
   "Urls": [
     {
       "Url": "*",
-      "HashPattern": null,
       "Servers": [
         {
-          "Url": "http://192.168.2.26:9090/"
-        },
-        {
-          "Url": "http://192.168.2.25:9090/"
+          "Url": "http://localhost/",
+          "Weight": 0,
+          "MaxRps": 0
         }
-      ]
+      ],
+      "HashPattern": null
     }
   ]
 }
