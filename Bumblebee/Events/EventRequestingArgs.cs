@@ -10,9 +10,18 @@ namespace Bumblebee.Events
         public EventRequestingArgs(HttpRequest request, HttpResponse response, Gateway gateway) : base(request, response, gateway)
         {
             Cancel = false;
+            ResultType = ResultType.Completed;
         }
 
         public bool Cancel { get; set; }
+
+        public ResultType ResultType { get; set; }
+    }
+
+    public enum ResultType
+    {
+        None,
+        Completed
     }
 
     public class EventAgentRequestingArgs : EventRequestingArgs

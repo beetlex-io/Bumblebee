@@ -214,6 +214,7 @@ namespace Bumblebee.Servers
                     RequestAgent agent = new RequestAgent(clientAgent, this, request, response, serverInfo, urlRoute);
                     agent.Completed = OnCompleted;
                     Gateway.AddRequest(agent);
+                    //agent.Execute();
                 }
             }
             catch (Exception e_)

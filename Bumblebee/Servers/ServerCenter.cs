@@ -15,7 +15,6 @@ namespace Bumblebee.Servers
             mAgents = new ConcurrentDictionary<string, ServerAgent>();
         }
 
-
         private ConcurrentDictionary<string, ServerAgent> mAgents;
 
         public Gateway Gateway { get; private set; }

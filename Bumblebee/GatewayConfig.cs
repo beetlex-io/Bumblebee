@@ -8,6 +8,10 @@ namespace Bumblebee
     public class GatewayConfig
     {
 
+        public int AgentMaxConnection { get; set; } = 300;
+
+        public int AgentRequestQueueLength { get; set; } = 2000;
+
         public List<ServerInfo> Servers { get; set; } = new List<ServerInfo>();
 
         public List<UrlConfig> Urls { get; set; } = new List<UrlConfig>();
@@ -21,6 +25,8 @@ namespace Bumblebee
             {
                 Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString() });
             }
+            this.AgentMaxConnection = gateway.AgentMaxConnection;
+            this.AgentRequestQueueLength = gateway.AgentRequestQueueLength;
             UrlConfig urlConfig = new UrlConfig();
             urlConfig.From(gateway.Routes.Default);
             Urls.Add(urlConfig);
@@ -35,7 +41,10 @@ namespace Bumblebee
 
         public void To(Gateway gateway)
         {
+            gateway.AgentRequestQueueLength = this.AgentRequestQueueLength;
+            gateway.AgentMaxConnection = this.AgentMaxConnection;
             this.PluginConfig.To(gateway.Pluginer);
+
             foreach (var server in Servers)
             {
                 gateway.SetServer(server.Uri, server.MaxConnections);
@@ -118,6 +127,7 @@ namespace Bumblebee
         public static void SaveConfig(Gateway gateway)
         {
             GatewayConfig config = new GatewayConfig();
+
             config.From(gateway);
             using (System.IO.StreamWriter writer = new System.IO.StreamWriter(CONFIG_FILE, false, Encoding.UTF8))
             {

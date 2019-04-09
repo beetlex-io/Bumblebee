@@ -16,7 +16,6 @@ namespace Bumblebee
     public class Gateway : IDisposable
     {
 
-
         public const int CLUSTER_SERVER_UNAVAILABLE = 590;
 
         public const int URL_NODE_SERVER_UNAVAILABLE = 591;
@@ -155,18 +154,17 @@ namespace Bumblebee
 
         private void OnRequest(object sender, EventHttpRequestArgs e)
         {
-            var url = e.Request.BaseUrl;
-            if (url.Length > 2 && url[1] == '_' && url[2] == '_')
-                return;
             try
             {
+                e.Cancel = true;
                 var ip = e.Request.RemoteIPAddress;
                 if (HttpServer.EnableLog(LogType.Info))
                 {
                     HttpServer.Log(LogType.Info, $"gateway {e.Request.Method} {e.Request.Url} request from {ip}");
                 }
                 HttpServer.RequestExecting();
-                if (this.Pluginer.Requesting(e.Request, e.Response))
+                var result = this.Pluginer.Requesting(e.Request, e.Response);
+                if (result.Item1)
                 {
                     var item = Routes.GetAgent(e.Request);
                     if (item == null)
@@ -182,7 +180,8 @@ namespace Bumblebee
                     }
                     else
                     {
-                        if (item.UrlRoute.Pluginer.Requesting(e.Request, e.Response))
+                        result = item.UrlRoute.Pluginer.Requesting(e.Request, e.Response);
+                        if (result.Item1)
                         {
                             if (HttpServer.EnableLog(LogType.Info))
                             {
@@ -196,8 +195,15 @@ namespace Bumblebee
                             {
                                 HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing cancel!");
                             }
+                            e.Cancel = result.Item2 == ResultType.Completed;
+                            return;
                         }
                     }
+                }
+                else
+                {
+                    e.Cancel = result.Item2 == ResultType.Completed;
+                    return;
                 }
             }
             catch (Exception e_)
@@ -208,11 +214,7 @@ namespace Bumblebee
                         $"gateway process {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.BaseUrl} error {e_.Message}@{e_.StackTrace}");
                 }
             }
-            finally
-            {
 
-                e.Cancel = true;
-            }
         }
 
         public void Response(HttpResponse response, object result)
@@ -229,7 +231,6 @@ namespace Bumblebee
             }
 
             HttpServer.RequestExecuted();
-            // ResponseError?.Invoke(this, e);
             this.Pluginer.ResponseError(e);
             if (e.Result != null)
             {

@@ -73,7 +73,7 @@ namespace Bumblebee.Routes
                 var routeItem = urls[i];
                 if (System.Text.RegularExpressions.Regex.IsMatch(url, routeItem.UrlPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
-                    if (routeItem.Servers.Length == 0)
+                    if (routeItem.Servers.Length == 0 && routeItem.ApiLoader)
                         continue;
                     if (string.IsNullOrEmpty(routeItem.Host))
                     {
@@ -152,7 +152,7 @@ namespace Bumblebee.Routes
             System.Threading.Interlocked.Increment(ref mVersion);
         }
 
-        public UrlRoute NewOrGet(string url, string hashPattern = null)
+        public UrlRoute NewOrGet(string url, string hashPattern = null, bool apiLoader = true)
         {
             if (url == "*")
             {
@@ -162,6 +162,7 @@ namespace Bumblebee.Routes
             if (!mUrlRoutes.TryGetValue(url, out UrlRoute item))
             {
                 item = new UrlRoute(Gateway, url);
+                item.ApiLoader = apiLoader;
                 mUrlRoutes[url] = item;
                 UpdateUrlTable();
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-
+using System.Reflection;
 namespace Bumblebee.Plugins
 {
     public class PluginCenter
@@ -18,7 +18,6 @@ namespace Bumblebee.Plugins
             RequestingHandlers = new PluginGroup<IRequestingHandler>(gateway);
             RequestedHandlers = new PluginGroup<IRequestedHandler>(gateway);
         }
-
 
         public PluginGroup<IRequestedHandler> RequestedHandlers { get; private set; }
 
@@ -40,7 +39,6 @@ namespace Bumblebee.Plugins
         {
             foreach (var t in assembly.GetTypes())
             {
-
                 if (t.GetInterface("IAgentRequestingHandler") != null && !t.IsAbstract && t.IsClass)
                 {
                     try
@@ -49,6 +47,19 @@ namespace Bumblebee.Plugins
                         handler.Init(Gateway, assembly);
                         AgentRequestingHandler.Add(handler);
                         Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] agent requesting handler success");
+                        RouteBinderAttribute routeBinderAttribute = t.GetCustomAttribute<RouteBinderAttribute>(false);
+                        if (routeBinderAttribute != null)
+                        {
+                            if (string.IsNullOrEmpty(routeBinderAttribute.RouteUrl))
+                            {
+                                Gateway.Pluginer.SetAgentRequesting(handler.Name);
+                            }
+                            else
+                            {
+                                var route = Gateway.Routes.NewOrGet(routeBinderAttribute.RouteUrl, null, routeBinderAttribute.ApiLoader);
+                                route.Pluginer.SetAgentRequesting(handler.Name);
+                            }
+                        }
                     }
                     catch (Exception e_)
                     {
@@ -65,6 +76,20 @@ namespace Bumblebee.Plugins
                         handler.Init(Gateway, assembly);
                         HeaderWritingHandlers.Add(handler);
                         Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] header writing handler success");
+                        RouteBinderAttribute routeBinderAttribute = t.GetCustomAttribute<RouteBinderAttribute>(false);
+                        if (routeBinderAttribute != null)
+                        {
+                            if (string.IsNullOrEmpty(routeBinderAttribute.RouteUrl))
+                            {
+                                Gateway.Pluginer.SetHeaderWriting(handler.Name);
+                            }
+                            else
+                            {
+                                var route = Gateway.Routes.NewOrGet(routeBinderAttribute.RouteUrl, null, routeBinderAttribute.ApiLoader);
+                                route.Pluginer.SetHeaderWriting(handler.Name);
+                            }
+                        }
+
                     }
                     catch (Exception e_)
                     {
@@ -97,6 +122,19 @@ namespace Bumblebee.Plugins
                         handler.Init(Gateway, assembly);
                         RequestingHandlers.Add(handler);
                         Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] requesting handler success");
+                        RouteBinderAttribute routeBinderAttribute = t.GetCustomAttribute<RouteBinderAttribute>(false);
+                        if (routeBinderAttribute != null)
+                        {
+                            if (string.IsNullOrEmpty(routeBinderAttribute.RouteUrl))
+                            {
+                                Gateway.Pluginer.SetRequesting(handler.Name);
+                            }
+                            else
+                            {
+                                var route = Gateway.Routes.NewOrGet(routeBinderAttribute.RouteUrl, null, routeBinderAttribute.ApiLoader);
+                                route.Pluginer.SetRequesting(handler.Name);
+                            }
+                        }
                     }
                     catch (Exception e_)
                     {
@@ -112,6 +150,19 @@ namespace Bumblebee.Plugins
                         handler.Init(Gateway, assembly);
                         RequestedHandlers.Add(handler);
                         Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] requested handler success");
+                        RouteBinderAttribute routeBinderAttribute = t.GetCustomAttribute<RouteBinderAttribute>(false);
+                        if (routeBinderAttribute != null)
+                        {
+                            if (string.IsNullOrEmpty(routeBinderAttribute.RouteUrl))
+                            {
+                                Gateway.Pluginer.SetRequested(handler.Name);
+                            }
+                            else
+                            {
+                                var route = Gateway.Routes.NewOrGet(routeBinderAttribute.RouteUrl, null, routeBinderAttribute.ApiLoader);
+                                route.Pluginer.SetRequested(handler.Name);
+                            }
+                        }
                     }
                     catch (Exception e_)
                     {

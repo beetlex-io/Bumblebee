@@ -54,6 +54,8 @@ namespace Bumblebee.Routes
 
         public string HashPattern { get; set; }
 
+        public bool ApiLoader { get; set; } = true;
+
         private RequestHashBuilder mRequestHashBuilder;
 
         public string Host { get; private set; }
@@ -120,7 +122,7 @@ namespace Bumblebee.Routes
         public UrlRouteServerGroup.UrlServerInfo GetServerAgent(HttpRequest request)
         {
             UrlRouteServerGroup.UrlServerInfo result;
-            result = GetServerHandler?.GetServer(Gateway, request, this.Servers);
+            result = Pluginer.GetServerHandler?.GetServer(Gateway, request, this.Servers);
             if (result == null)
             {
                 ulong hashcode;

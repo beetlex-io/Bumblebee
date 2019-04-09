@@ -36,7 +36,7 @@ namespace Bumblebee.Plugins
             {
                 mRequestingHandlerMap[name] = item;
                 mRequestingHandlers = mRequestingHandlerMap.Values.ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} load {name} requesting handler ");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requesting handler ");
             }
         }
 
@@ -48,7 +48,7 @@ namespace Bumblebee.Plugins
         }
 
 
-        public bool Requesting(HttpRequest request, HttpResponse response)
+        public (bool, ResultType) Requesting(HttpRequest request, HttpResponse response)
         {
             var items = mRequestingHandlers;
             if (items.Length > 0)
@@ -59,9 +59,9 @@ namespace Bumblebee.Plugins
                     if (!e.Cancel)
                         items[i].Execute(e);
                 }
-                return !e.Cancel;
+                return (!e.Cancel, e.ResultType);
             }
-            return true;
+            return (true, ResultType.Completed);
         }
 
 
@@ -95,7 +95,7 @@ namespace Bumblebee.Plugins
             {
                 mAgentRequestingHandlerMap[name] = item;
                 mAgentRequestingHandlers = mAgentRequestingHandlerMap.Values.ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} load {name} agent requesting handler ");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} agent requesting handler ");
             }
         }
 
@@ -133,7 +133,6 @@ namespace Bumblebee.Plugins
         #endregion
 
 
-
         #region header writing
 
         private ConcurrentDictionary<string, IHeaderWritingHandler> mHeaderWritingHandlerMap = new ConcurrentDictionary<string, IHeaderWritingHandler>();
@@ -153,7 +152,7 @@ namespace Bumblebee.Plugins
             {
                 mHeaderWritingHandlerMap[name] = item;
                 mHeaderWritingHandlers = mHeaderWritingHandlerMap.Values.ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} load {name} header writing handler ");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} header writing handler ");
             }
         }
 
@@ -207,7 +206,7 @@ namespace Bumblebee.Plugins
             {
                 mRequestedHandlerMap[name] = item;
                 mRequestedHandlers = mRequestedHandlerMap.Values.ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} load {name} requested handler ");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requested handler ");
             }
         }
 
@@ -273,7 +272,7 @@ namespace Bumblebee.Plugins
             {
                 mResponseErrorHandlerMap[name] = item;
                 responseErrorHandlers = mResponseErrorHandlerMap.Values.ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} load {name} response error handler ");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} response error handler ");
             }
 
         }
@@ -306,10 +305,42 @@ namespace Bumblebee.Plugins
 
         #endregion
 
+        #region get server
+
+        public IGetServerHandler GetServerHandler { get; set; }
+
+        public void SetGetServerHandler(string name)
+        {
+            var item = Gateway.PluginCenter.GetServerHandlers.Get(name);
+            if (item == null)
+            {
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} get server handler not found");
+            }
+            else
+            {
+                GetServerHandler = item;
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} get server handler ");
+            }
+        }
+
+        public void RemoveGetServerHandler()
+        {
+            GetServerHandler = null;
+        }
+
+        private void ReloadGetServerHandler()
+        {
+            var item = GetServerHandler;
+            if (item != null)
+            {
+                SetGetServerHandler(item.Name);
+            }
+        }
+
+        #endregion
         public Routes.UrlRoute UrlRoute { get; private set; }
 
         public Gateway Gateway { get; private set; }
-
 
         public void Reload()
         {
@@ -318,6 +349,7 @@ namespace Bumblebee.Plugins
             this.ReloadHeaderWriting();
             this.ReloadRequested();
             this.ReloadRequesting();
+            this.ReloadGetServerHandler();
         }
     }
 }
