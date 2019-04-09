@@ -167,6 +167,7 @@ namespace Bumblebee.Routes
                 UpdateUrlTable();
 
             }
+            item.ApiLoader = apiLoader;
             item.BuildHashPattern(hashPattern);
             return item;
         }
