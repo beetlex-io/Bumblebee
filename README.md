@@ -1,14 +1,16 @@
 Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
 ![](https://i.imgur.com/uIb9y7I.jpg)
 ## 独立部署+Web管理
-[https://ikende.com/blog/126.html](https://ikende.com/blog/126.html)
-## 组件部署
-组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.ConsoleServer](https://github.com/IKende/Bumblebee/tree/master/bin)下载需要版本的zip即可。`Bumblebee.ConsoleServer`提供两个配置文件描述'HttpConfig.json'和'Gateway.json'分别用于配置HTTP服务和网关对应的负载策略。
+组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.Server](https://github.com/IKende/Bumblebee/tree/master/bin)下载最新版本的zip文件
 ## 系统要求
 任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
 ## 运行网关
-- windows `run.bat 或 dotnet Bumblebee.ConsoleServer.dll `
-- linux `./run.sh 或 dotnet Bumblebee.ConsoleServer.dll`
+- windows `run.bat 或 dotnet Bumblebee.Server.dll `
+- linux `./run.sh 或 dotnet Bumblebee.Server.dll`
+## Web管理
+部署成功后可以通过以下`http://ipaddress:host/__admin/`网址访问网关的管理端，默认用户名是`admin`密码`123456`;通过管理界面可以添加服务配置负载规则和查看网关状态如一图:
+![](https://i.imgur.com/xc3dmLb.png)
+![](https://i.imgur.com/ajKS5T8.png)
 
 ## HTTP配置
 'HttpConfig.json'是用于配置网关的HTTP服务信息，主要包括服务端，HTTPs和可处理的最大连接数等。
