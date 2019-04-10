@@ -8,7 +8,7 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 - windows `run.bat 或 dotnet Bumblebee.Server.dll `
 - linux `./run.sh 或 dotnet Bumblebee.Server.dll`
 ## Web管理
-部署成功后可以通过以下`http://ipaddress:host/__admin/`网址访问网关的管理端，默认用户名是`admin`密码`123456`;通过管理界面可以添加服务配置负载规则和查看网关状态如一图:
+部署成功后可以通过以下`http://ipaddress:host/__admin/`网址访问网关的管理端，默认用户名是`admin`密码`123456`;通过管理界面可以添加服务配置负载规则和查看网关状态如下图:
 ![](https://i.imgur.com/xc3dmLb.png)
 ![](https://i.imgur.com/ajKS5T8.png)
 
