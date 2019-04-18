@@ -4,7 +4,7 @@ Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务
 组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.Server](https://github.com/IKende/Bumblebee/tree/master/bin)下载最新版本的zip文件
 ## Docker
 ```
-docker push ikende/beetlex_gateway
+docker pull ikende/beetlex_gateway
 ```
 ## 系统要求
 任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
