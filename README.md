@@ -1,5 +1,7 @@
 Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
 ![](https://i.imgur.com/uIb9y7I.jpg)
+## 帮助
+http://ikende.com/doc/
 ## 独立部署+Web管理
 组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.Server](https://github.com/IKende/Bumblebee/tree/master/bin)下载最新版本的zip文件
 ## Docker
