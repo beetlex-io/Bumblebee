@@ -9,7 +9,7 @@ http://ikende.com/doc/
 docker pull ikende/beetlex_gateway
 ```
 ## 系统要求
-任何运行.net core 2.1或更高版本的操作系统(liinux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
+任何运行.net core 2.1或更高版本的操作系统(linux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
 ## 运行网关
 - windows `run.bat 或 dotnet Bumblebee.Server.dll `
 - linux `./run.sh 或 dotnet Bumblebee.Server.dll`
