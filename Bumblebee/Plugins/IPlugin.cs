@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,6 +12,12 @@ namespace Bumblebee.Plugins
         void Init(Gateway gateway, System.Reflection.Assembly assembly);
 
         string Description { get; }
+
+        void LoadSetting(JToken setting);
+
+        Object SaveSetting();
+
+        bool Enabled { get; set; }
     }
 
 

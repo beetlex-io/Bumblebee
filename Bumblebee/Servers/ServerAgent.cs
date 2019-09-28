@@ -14,6 +14,7 @@ namespace Bumblebee.Servers
         public ServerAgent(Uri uri, Gateway gateway, int maxConnections = 100)
         {
             Uri = uri;
+            UriKey = uri.ToString();
             ServerName = uri.ToString();
             ServerID = GetServerID();
             Host = uri.Host;
@@ -21,18 +22,23 @@ namespace Bumblebee.Servers
             Available = false;
             MaxConnections = maxConnections;
             Gateway = gateway;
-            requestAgentsPool = new Queue<TcpClientAgent>(gateway.AgentMaxConnection);
-            mClientWaitQueue = new Queue<TaskCompletionSource<TcpClientAgent>>(gateway.AgentRequestQueueLength);
+            requestAgentsPool = new ConcurrentQueue<TcpClientAgent>();
+            mWaitQueue = new ConcurrentQueue<TaskCompletionSource<TcpClientAgent>>();
             for (int i = 0; i < 10; i++)
             {
-                requestAgentsPool.Enqueue(new TcpClientAgent(Host, Port));
+                var item = new TcpClientAgent(Host, Port);
+                requestAgentsPool.Enqueue(item);
+                Agents.Add(item);
             }
             mConnections = 10;
             mCount = 10;
+            Statistics.Server = ServerName;
             this.Available = false;
 
-            mQueueWaitMaxLength = gateway.AgentRequestQueueLength;
+            mQueueWaitMaxLength = gateway.AgentRequestQueueSize;
         }
+
+        public string UriKey { get; set; }
 
         private int mQueueWaitMaxLength;
 
@@ -49,6 +55,10 @@ namespace Bumblebee.Servers
                 return mID;
             }
         }
+
+        public string Category { get; set; }
+
+        public string Remark { get; set; }
 
         public string ServerName { get; set; }
 
@@ -78,9 +88,9 @@ namespace Bumblebee.Servers
                     {
                         OnSocketError(false);
                     }
-                    if (Gateway.HttpServer.EnableLog(LogType.Info))
+                    if (Gateway.HttpServer.EnableLog(LogType.Debug))
                     {
-                        Gateway.HttpServer.Log(LogType.Info, $"Verify {Uri} server error {e_.Message}  server available {Available}");
+                        Gateway.HttpServer.Log(LogType.Debug, $"Verify {Uri} server error {e_.Message}  available[{Available}]");
                     }
                 }
                 finally
@@ -97,12 +107,26 @@ namespace Bumblebee.Servers
                 var count = System.Threading.Interlocked.Increment(ref mSocketErrors);
                 if (count >= Gateway.AgentMaxSocketError)
                 {
+                    if (this.Available)
+                    {
+                        if (Gateway.HttpServer.EnableLog(LogType.Info))
+                        {
+                            Gateway.HttpServer.Log(LogType.Info, $"{Uri} server not available");
+                        }
+                    }
                     this.Available = false;
                 }
             }
             else
             {
                 mSocketErrors = 0;
+                if (!this.Available)
+                {
+                    if (Gateway.HttpServer.EnableLog(LogType.Info))
+                    {
+                        Gateway.HttpServer.Log(LogType.Info, $"{Uri} server available");
+                    }
+                }
                 this.Available = true;
             }
         }
@@ -111,9 +135,13 @@ namespace Bumblebee.Servers
 
         private bool mDisposed = false;
 
-        private Queue<TcpClientAgent> requestAgentsPool;
+        public Statistics Statistics { get; private set; } = new Statistics();
 
-        private Queue<TaskCompletionSource<TcpClientAgent>> mClientWaitQueue;
+        private ConcurrentQueue<TcpClientAgent> requestAgentsPool;
+
+        private ConcurrentQueue<TaskCompletionSource<TcpClientAgent>> mWaitQueue;
+
+        public int WaitQueue => mWaitLength;
 
         private object mLockPool = new object();
 
@@ -121,9 +149,13 @@ namespace Bumblebee.Servers
 
         private int mConnections;
 
+        private int mWaitLength;
+
         public int Count => mCount;
 
         public Gateway Gateway { get; private set; }
+
+        public List<TcpClientAgent> Agents { get; private set; } = new List<TcpClientAgent>();
 
         public Uri Uri { get; set; }
 
@@ -138,57 +170,60 @@ namespace Bumblebee.Servers
         internal Task<TcpClientAgent> PopClient()
         {
             TcpClientAgent tcpClientAgent;
-            lock (mLockPool)
+
+            TaskCompletionSource<TcpClientAgent> result = new TaskCompletionSource<TcpClientAgent>();
+            if (requestAgentsPool.TryDequeue(out tcpClientAgent))
             {
-                TaskCompletionSource<TcpClientAgent> result = new TaskCompletionSource<TcpClientAgent>();
-                if (requestAgentsPool.Count > 0)
+                result.SetResult(tcpClientAgent);
+            }
+            else
+            {
+                if (mConnections > MaxConnections)
                 {
-                    tcpClientAgent = requestAgentsPool.Dequeue();
-                    result.SetResult(tcpClientAgent);
-                }
-                else
-                {
-                    mConnections++;
-                    if (mConnections > MaxConnections)
+                    if (mWaitLength < mQueueWaitMaxLength)
                     {
-                        mConnections--;
-                        if (mClientWaitQueue.Count < mQueueWaitMaxLength)
-                            mClientWaitQueue.Enqueue(result);
-                        else
-                            result.SetResult(null);
+                        System.Threading.Interlocked.Increment(ref mWaitLength);
+                        mWaitQueue.Enqueue(result);
                     }
                     else
                     {
-                        tcpClientAgent = new TcpClientAgent(Host, Port);
-                        result.SetResult(tcpClientAgent);
+                        result.SetResult(null);
                     }
                 }
-                return result.Task;
+                else
+                {
+                    System.Threading.Interlocked.Increment(ref mConnections);
+                    tcpClientAgent = new TcpClientAgent(Host, Port);
+                    lock (Agents)
+                        Agents.Add(tcpClientAgent);
+                    result.SetResult(tcpClientAgent);
+                }
             }
+            return result.Task;
+
         }
 
         internal void Push(TcpClientAgent agent)
         {
 
-            lock (mLockPool)
+            if (mDisposed)
             {
-                if (mDisposed)
+                agent.Client.DisConnect();
+            }
+            else
+            {
+                if (mWaitQueue.TryDequeue(out TaskCompletionSource<TcpClientAgent> result))
                 {
-                    agent.Client.DisConnect();
+                    System.Threading.Interlocked.Decrement(ref mWaitLength);
+                    //result.SetResult(agent);
+                    Task.Run(() => result.SetResult(agent));
                 }
                 else
                 {
-                    if (mClientWaitQueue.Count > 0)
-                    {
-                        var item = mClientWaitQueue.Dequeue();
-                        item.SetResult(agent);
-                        //Task.Run(() => item.SetResult(agent));
-                    }
-                    else
-                    {
-                        requestAgentsPool.Enqueue(agent);
-                    }
+                    agent.Status = TcpClientAgentStatus.Free;
+                    requestAgentsPool.Enqueue(agent);
                 }
+
             }
 
         }
@@ -198,12 +233,15 @@ namespace Bumblebee.Servers
             try
             {
                 var clientAgent = await PopClient();
+
                 if (clientAgent == null)
                 {
-                    string error = $"Unable to reach {Host}:{Port} HTTP request, exceeding maximum number of connections";
+                    string error = $"Unable to reach {Host}:{Port} request queue overflow!";
                     Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
-                       Gateway, error, Gateway.SERVER_MAX_OF_CONNECTIONS);
+                       Gateway, error, Gateway.SERVER_AGENT_QUEUE_OVERFLOW);
                     Gateway.OnResponseError(erea);
+                    Gateway.ProcessError(Gateway.SERVER_AGENT_QUEUE_OVERFLOW, request);
+                    Statistics.Add(Gateway.SERVER_AGENT_QUEUE_OVERFLOW, 0);
                     if (request.Server.EnableLog(LogType.Info))
                     {
                         request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error  exceeding maximum number of connections");
@@ -211,10 +249,10 @@ namespace Bumblebee.Servers
                 }
                 else
                 {
+                    clientAgent.Status = TcpClientAgentStatus.None;
                     RequestAgent agent = new RequestAgent(clientAgent, this, request, response, serverInfo, urlRoute);
                     agent.Completed = OnCompleted;
-                    Gateway.AddRequest(agent);
-                    //agent.Execute();
+                    agent.Execute();
                 }
             }
             catch (Exception e_)
@@ -240,6 +278,7 @@ namespace Bumblebee.Servers
                 {
                     OnSocketError(false);
                 }
+                this.Statistics.Add(requestAgent.Code, requestAgent.Time);
             }
             finally
             {
@@ -251,6 +290,8 @@ namespace Bumblebee.Servers
         public void Dispose()
         {
             mDisposed = true;
+            lock (Agents)
+                Agents.Clear();
             while (requestAgentsPool.TryDequeue(out TcpClientAgent result))
             {
                 result.Client.DisConnect();

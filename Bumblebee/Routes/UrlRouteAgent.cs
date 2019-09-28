@@ -9,13 +9,13 @@ namespace Bumblebee.Routes
     public class UrlRouteAgent
     {
 
-
         public long Version { get; set; }
 
         public string Url { get; set; }
 
         public UrlRoute UrlRoute { get; set; }
 
+        public List<UrlRoute> Routes { get; set; }
 
         public void Execute(HttpRequest request, HttpResponse response)
         {
@@ -30,6 +30,7 @@ namespace Bumblebee.Routes
 
                 Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(
                     request, response, UrlRoute.Gateway, $"The {Url} url route server unavailable", Gateway.URL_NODE_SERVER_UNAVAILABLE);
+                UrlRoute.Gateway.ProcessError(Gateway.URL_NODE_SERVER_UNAVAILABLE, request);
                 UrlRoute.Gateway.OnResponseError(erea);
             }
             else
@@ -48,6 +49,7 @@ namespace Bumblebee.Routes
                         Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                            UrlRoute.Gateway, error, Gateway.SERVER_MAX_OF_RPS);
                         UrlRoute.Gateway.OnResponseError(erea);
+                        UrlRoute.Gateway.ProcessError(Gateway.SERVER_MAX_OF_RPS, request);
                         if (request.Server.EnableLog(LogType.Info))
                         {
                             request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding maximum number of RPS");

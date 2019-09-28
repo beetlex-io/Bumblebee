@@ -101,20 +101,16 @@ namespace Bumblebee.Servers
                 var agent = Gateway.Agents.Get(host);
                 if (agent == null)
                 {
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {Url} route add server error {host} server not found!");
-                    return;
+                    Gateway.Agents.SetServer(host, Gateway.AgentMaxConnection);
+                    agent = Gateway.Agents.Get(host);
                 }
-                else
-                {
-                    UrlServerInfo serverItem = new UrlServerInfo(Url, agent);
-                    mServerID.TryDequeue(out ulong id);
-                    serverItem.ID = id;
-                    serverItem.Weight = weight;
-                    serverItem.MaxRPS = maxRps;
-                    mServers.Add(serverItem);
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
-                }
-
+                UrlServerInfo serverItem = new UrlServerInfo(Url, agent);
+                mServerID.TryDequeue(out ulong id);
+                serverItem.ID = id;
+                serverItem.Weight = weight;
+                serverItem.MaxRPS = maxRps;
+                mServers.Add(serverItem);
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
             }
             RefreshWeightTable();
         }
@@ -223,7 +219,7 @@ namespace Bumblebee.Servers
 
             }
 
-            private const int TABLE_SIZE = 50;
+            private const int TABLE_SIZE = 100;
 
             private UrlServerInfo[] mConnectionsTable = new UrlServerInfo[0];
 
@@ -322,6 +318,7 @@ namespace Bumblebee.Servers
                 {
                     Status |= item.ID;
                 }
+                Shuffle(mConnectionsTable);
                 return true;
             }
         }

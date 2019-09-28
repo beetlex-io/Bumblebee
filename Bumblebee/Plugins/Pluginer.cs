@@ -56,7 +56,7 @@ namespace Bumblebee.Plugins
                 Events.EventRequestingArgs e = new Events.EventRequestingArgs(request, response, Gateway);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (!e.Cancel)
+                    if (!e.Cancel && items[i].Enabled)
                         items[i].Execute(e);
                 }
                 return (!e.Cancel, e.ResultType);
@@ -114,7 +114,7 @@ namespace Bumblebee.Plugins
                 Events.EventAgentRequestingArgs e = new Events.EventAgentRequestingArgs(request, response, Gateway, server, urlRoute);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (!e.Cancel)
+                    if (!e.Cancel && items[i].Enabled)
                         items[i].Execute(e);
                 }
                 return !e.Cancel;
@@ -171,7 +171,8 @@ namespace Bumblebee.Plugins
                 Events.EventHeaderWritingArgs e = new Events.EventHeaderWritingArgs(request, response, Gateway, header);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    items[i].Execute(e);
+                    if (items[i].Enabled)
+                        items[i].Execute(e);
                 }
             }
         }
@@ -224,11 +225,18 @@ namespace Bumblebee.Plugins
                 var items = mRequestedHandlers;
                 if (items.Length > 0)
                 {
-                    Events.EventRequestCompletedArgs e = new Events.EventRequestCompletedArgs(requestAgent.UrlRoute,
+                    if (requestAgent.EventRequestCompletedArgs == null)
+                    {
+                        requestAgent.EventRequestCompletedArgs = new Events.EventRequestCompletedArgs(requestAgent.UrlRoute,
                         requestAgent.Request, requestAgent.Response, Gateway, requestAgent.Code, requestAgent.Server, requestAgent.Time);
+                        if (requestAgent.ResponseError != null)
+                            requestAgent.EventRequestCompletedArgs.Error = requestAgent.ResponseError.Message;
+                        requestAgent.EventRequestCompletedArgs.RequestID = requestAgent.RequestID;
+                    }
                     for (int i = 0; i < items.Length; i++)
                     {
-                        items[i].Execute(e);
+                        if (items[i].Enabled)
+                            items[i].Execute(requestAgent.EventRequestCompletedArgs);
                     }
                 }
             }
@@ -276,6 +284,7 @@ namespace Bumblebee.Plugins
             }
 
         }
+
         public void RemoveResponseError(string name)
         {
             mResponseErrorHandlerMap.TryRemove(name, out IResponseErrorHandler value);
@@ -290,7 +299,8 @@ namespace Bumblebee.Plugins
             {
                 for (int i = 0; i < items.Length; i++)
                 {
-                    items[i].Exeucte(e);
+                    if (items[i].Enabled)
+                        items[i].Exeucte(e);
                 }
             }
         }
@@ -338,6 +348,8 @@ namespace Bumblebee.Plugins
         }
 
         #endregion
+
+
         public Routes.UrlRoute UrlRoute { get; private set; }
 
         public Gateway Gateway { get; private set; }

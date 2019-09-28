@@ -15,6 +15,16 @@ namespace Bumblebee.Servers
             mAgents = new ConcurrentDictionary<string, ServerAgent>();
         }
 
+        public List<StatisticsGroup> GetServerStatistics()
+        {
+            List<StatisticsGroup> result = new List<StatisticsGroup>();
+            foreach (var item in mAgents.Values)
+            {
+                result.Add(item.Statistics.GetData());
+            }
+            return result;
+        }
+
         private ConcurrentDictionary<string, ServerAgent> mAgents;
 
         public Gateway Gateway { get; private set; }
@@ -54,22 +64,29 @@ namespace Bumblebee.Servers
 
         public ServerAgent SetServer(string host, int maxConnections)
         {
+            return SetServer(host, maxConnections, null,null);
+        }
+
+        public ServerAgent SetServer(string host, int maxConnections,string category,string remark)
+        {
             ServerAgent result = null;
             try
             {
                 
-                if (maxConnections > Gateway.AgentMaxConnection || maxConnections==0)
+                if (maxConnections==0)
                     maxConnections = Gateway.AgentMaxConnection;
-
                 if (mAgents.TryGetValue(GetHost(host), out result))
                 {
                     result.MaxConnections = maxConnections;
+                    
                 }
                 else
                 {
                     result = new ServerAgent(new Uri(host), Gateway, maxConnections);
                     mAgents[GetHost(host)] = result;
                 }
+                result.Category = category;
+                result.Remark = remark;
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway set {host} server max connections {maxConnections} success");
 
             }

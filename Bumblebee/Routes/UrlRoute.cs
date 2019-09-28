@@ -88,6 +88,22 @@ namespace Bumblebee.Routes
             }
         }
 
+        public string Remark { get; set; }
+
+        public UrlRoute AddServer(params string[] hosts)
+        {
+            if (hosts != null)
+                foreach (var item in hosts)
+                {
+                    AddServer(item, 10, 0);
+                }
+            return this;
+        }
+        public UrlRoute AddServer(string host, int wediht)
+        {
+            AddServer(host, wediht,0);
+            return this;
+        }
         public UrlRoute AddServer(string host, int wediht, int maxRps)
         {
             mServers.NewOrModify(host, wediht, maxRps);

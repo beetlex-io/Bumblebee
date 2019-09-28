@@ -16,17 +16,16 @@ namespace Bumblebee
 
         public List<UrlConfig> Urls { get; set; } = new List<UrlConfig>();
 
-
         public PluginConfig PluginConfig { get; set; } = new PluginConfig();
 
         public void From(Gateway gateway)
         {
             foreach (var server in gateway.Agents.Servers)
             {
-                Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString() });
+                Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(),Remark = server.Remark,Category= server.Category });
             }
             this.AgentMaxConnection = gateway.AgentMaxConnection;
-            this.AgentRequestQueueLength = gateway.AgentRequestQueueLength;
+            this.AgentRequestQueueLength = gateway.AgentRequestQueueSize;
             UrlConfig urlConfig = new UrlConfig();
             urlConfig.From(gateway.Routes.Default);
             Urls.Add(urlConfig);
@@ -41,13 +40,13 @@ namespace Bumblebee
 
         public void To(Gateway gateway)
         {
-            gateway.AgentRequestQueueLength = this.AgentRequestQueueLength;
+            gateway.AgentRequestQueueSize = this.AgentRequestQueueLength;
             gateway.AgentMaxConnection = this.AgentMaxConnection;
             this.PluginConfig.To(gateway.Pluginer);
 
             foreach (var server in Servers)
             {
-                gateway.SetServer(server.Uri, server.MaxConnections);
+                gateway.SetServer(server.Uri,server.Category,server.Remark, server.MaxConnections);
             }
             foreach (var s in gateway.Agents.Servers)
             {
@@ -75,6 +74,10 @@ namespace Bumblebee
             public string Uri { get; set; }
 
             public int MaxConnections { get; set; }
+
+            public string Category { get; set; }
+
+            public string Remark { get; set; }
         }
 
         public class UrlConfig
@@ -85,6 +88,8 @@ namespace Bumblebee
             public PluginConfig PluginConfig { get; set; } = new PluginConfig();
 
             public string Url { get; set; }
+
+            public string Remark { get; set; }
 
             public string HashPattern { get; set; }
 
@@ -100,6 +105,7 @@ namespace Bumblebee
             public void From(Routes.UrlRoute urlRoute)
             {
                 Url = urlRoute.Url;
+                Remark = urlRoute.Remark;
                 HashPattern = urlRoute.HashPattern;
                 this.PluginConfig = new PluginConfig(urlRoute.Pluginer);
                 foreach (var server in urlRoute.Servers)
@@ -112,7 +118,7 @@ namespace Bumblebee
             {
                 gateway.RemoveRoute(Url);
 
-                var result = gateway.SetRoute(Url, HashPattern);
+                var result = gateway.SetRoute(Url,Remark, HashPattern);
                 this.PluginConfig.To(result.Pluginer);
                 foreach (var server in Servers)
                 {

@@ -37,6 +37,7 @@ namespace Bumblebee.Servers
         }
 
 
+
         //public static long RequestCount;
 
         //public static ConcurrentDictionary<long, RequestAgent> mHistoryRequests = new ConcurrentDictionary<long, RequestAgent>();
@@ -49,6 +50,8 @@ namespace Bumblebee.Servers
 
         private long mRequestID;
 
+        public long RequestID => mRequestID;
+
         private byte[] mBuffer;
 
         private TcpClientAgent mClientAgent;
@@ -56,6 +59,8 @@ namespace Bumblebee.Servers
         private int mRequestLength;
 
         private bool mTransferEncoding = false;
+
+        public TcpClientAgent ClientAgent => mClientAgent;
 
         public UrlRouteServerGroup.UrlServerInfo UrlServerInfo { get; private set; }
 
@@ -73,11 +78,16 @@ namespace Bumblebee.Servers
 
         public RequestStatus Status { get; set; }
 
+        public EventRequestCompletedArgs EventRequestCompletedArgs { get; set; }
+
+        public EventResponseErrorArgs ResponseError { get; set; }
+
         private void OnSocketError(IClient c, ClientErrorArgs e)
         {
+            mClientAgent.Status = TcpClientAgentStatus.ResponseError;
             HttpApiServer httpApiServer = Server.Gateway.HttpServer;
-            if (httpApiServer.EnableLog(BeetleX.EventArgs.LogType.Error))
-                httpApiServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway request {Server.Host}:{Server.Port} error {e.Message}@{e.Error.InnerException?.Message} status {Status}");
+            if (httpApiServer.EnableLog(BeetleX.EventArgs.LogType.Info))
+                httpApiServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway [{mRequestID}] request {Server.Host}:{Server.Port} error {e.Message}@{e.Error.InnerException?.Message} status {Status}");
 
             if (Status == RequestStatus.Requesting)
             {
@@ -102,6 +112,7 @@ namespace Bumblebee.Servers
                     OnCompleted(null);
                 }
             }
+
         }
 
         public PipeStream GetRequestStream()
@@ -129,11 +140,12 @@ namespace Bumblebee.Servers
         {
             if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
             {
-                Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} netstream receiving");
+                Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream reading");
             }
             PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingHeader)
             {
+                mClientAgent.Status = TcpClientAgentStatus.ResponseReciveHeader;
                 var indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
                 while (indexof.End != null)
                 {
@@ -147,11 +159,15 @@ namespace Bumblebee.Servers
                         }
                         UrlRoute.Pluginer.HeaderWriting(Request, Response, mResultHeader);
                         mResultHeader.Write(agentStream);
+                        if (Server.Gateway.OutputServerAddress)
+                        {
+                            agentStream.Write("Logic-Server: " + Server.ServerName + "\r\n");
+                        }
                         agentStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
                         if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                         {
-                            Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} netstream header received");
+                            Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read header ");
                         }
                         return;
                     }
@@ -168,16 +184,12 @@ namespace Bumblebee.Servers
                         }
                         if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
                         {
-                            //agentStream.Write(Gateway.GATEWAY_SERVER_HEDER, 0, Gateway.GATEWAY_SERVER_HEDER.Length);
+
                             mResultHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
                         }
                         else
                         {
                             mResultHeader.Add(header.Item1, header.Item2);
-                            //if (UrlRoute.Gateway.OnHeaderWriting(Request, Response, agentStream, Server, header.Item1, header.Item2))
-                            //{
-                            //    agentStream.Write(mBuffer, 0, indexof.Length);
-                            //}
                         }
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
@@ -187,14 +199,20 @@ namespace Bumblebee.Servers
 
         private void ResponseBody(PipeStream pipeStream)
         {
+
             PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingBody)
             {
+                mClientAgent.Status = TcpClientAgentStatus.ResponseReceiveBody;
                 if (mTransferEncoding)
                 {
                     while (pipeStream.Length > 0)
                     {
                         var len = pipeStream.Read(mBuffer, 0, mBuffer.Length);
+                        if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
+                        {
+                            Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
+                        }
                         agentStream.Write(mBuffer, 0, len);
                         bool end = true;
                         for (int i = 0; i < 5; i++)
@@ -232,6 +250,10 @@ namespace Bumblebee.Servers
                         if (mRequestLength > 0)
                         {
                             var len = pipeStream.Read(mBuffer, 0, mBuffer.Length);
+                            if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
+                            {
+                                Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
+                            }
                             mRequestLength -= len;
                             agentStream.Write(mBuffer, 0, len);
                         }
@@ -253,6 +275,7 @@ namespace Bumblebee.Servers
 
         private void OnReveive(IClient c, ClientReceiveArgs reader)
         {
+            mClientAgent.Status = TcpClientAgentStatus.ResponseReceive;
             PipeStream stream = reader.Stream.ToPipeStream();
             if (Status >= RequestStatus.Responding)
             {
@@ -268,6 +291,7 @@ namespace Bumblebee.Servers
 
         public void Execute()
         {
+            mClientAgent.Status = TcpClientAgentStatus.Requesting;
             var request = Request;
             var response = Response;
             Status = RequestStatus.Requesting;
@@ -278,7 +302,7 @@ namespace Bumblebee.Servers
                 {
                     if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} netstream writing");
+                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} request stream reading");
                     }
                     PipeStream pipeStream = mClientAgent.Client.Stream.ToPipeStream();
                     byte[] buffer = mBuffer;
@@ -319,7 +343,11 @@ namespace Bumblebee.Servers
                         len = request.Stream.Read(buffer, 0, buffer.Length);
                         if (len == 0)
                         {
-                            Code = Gateway.SERER_READ_STREAM_ERROR;
+                            if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Warring))
+                            {
+                                Request.Server.Log(BeetleX.EventArgs.LogType.Warring, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} request stream read error");
+                            }
+                            Code = Gateway.SERVER_NETWORK_READ_STREAM_ERROR;
                             EventResponseErrorArgs eventResponseErrorArgs =
                                 new EventResponseErrorArgs(request, response, UrlRoute.Gateway, "read request stream error", Gateway.SERVER_SOCKET_ERROR);
                             OnCompleted(eventResponseErrorArgs);
@@ -329,27 +357,33 @@ namespace Bumblebee.Servers
                         {
                             pipeStream.Write(buffer, 0, len);
                             bodylength -= len;
+                            if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
+                            {
+                                Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} request stream read size {len}");
+                            }
                         }
                     }
                     Status = RequestStatus.Responding;
                     mClientAgent.Client.Stream.Flush();
                     if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} netstream writed");
+                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} request stream read success");
                     }
+                    mClientAgent.Status = TcpClientAgentStatus.RequestSuccess;
                 }
                 catch (Exception e_)
                 {
+                    mClientAgent.Status = TcpClientAgentStatus.RequestError;
                     string error = $" request to {Server.Host}:{Server.Port} error {e_.Message}";
                     EventResponseErrorArgs eventResponseErrorArgs =
                         new EventResponseErrorArgs(request, response, UrlRoute.Gateway, error, Gateway.SERVER_SOCKET_ERROR);
                     if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} netstream write error {e_.Message}{e_.StackTrace}");
+                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} request proxy stream write error {e_.Message}{e_.StackTrace}");
                     }
                     try
                     {
-                        if (mClientAgent.Client != null)
+                        if (mClientAgent.Client != null && mClientAgent.Client.IsConnected)
                             mClientAgent.Client.DisConnect();
                     }
                     finally
@@ -363,21 +397,43 @@ namespace Bumblebee.Servers
 
         private int mCompletedStatus = 0;
 
-        private void OnCompleted(EventResponseErrorArgs error)
+        internal void Cancel()
         {
             if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
             {
-                Time = TimeWatch.GetElapsedMilliseconds() - mStartTime;
                 mClientAgent.Client.ClientError = null;
                 mClientAgent.Client.DataReceive = null;
+                if (mClientAgent.Client.IsConnected)
+                    mClientAgent.Client.DisConnect();
                 Server.Push(mClientAgent);
+            }
+        }
+        internal void OnCompleted(EventResponseErrorArgs error)
+        {
+            if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
+            {
+                this.ResponseError = error;
+                Time = (long)(TimeWatch.GetTotalMilliseconds() - Request.RequestTime);
+                mClientAgent.Client.ClientError = null;
+                mClientAgent.Client.DataReceive = null;
+                mClientAgent.Status = TcpClientAgentStatus.ResponseSuccess;
                 //System.Threading.Interlocked.Decrement(ref RequestCount);
                 //mHistoryRequests.Remove(mRequestID, out RequestAgent value);
                 try
                 {
-                    if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
+                    if (Code >= 500)
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} process completed code {Code}  time:{Time}");
+                        if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Warring))
+                        {
+                            Request.Server.Log(BeetleX.EventArgs.LogType.Warring, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} completed code {Code} use time:{Time}ms");
+                        }
+                    }
+                    else
+                    {
+                        if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
+                        {
+                            Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} completed code {Code} use time:{Time}ms");
+                        }
                     }
                     UrlRoute.Pluginer.Requested(this);
                     Completed?.Invoke(this);
@@ -387,7 +443,7 @@ namespace Bumblebee.Servers
                 {
                     if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Error))
                     {
-                        Request.Server.Log(BeetleX.EventArgs.LogType.Error, $"gateway {Request.RemoteIPAddress} {Request.Method} {Request.Url} request {Server.Host}:{Server.Port} process completed event error {e_.Message}@{e_.StackTrace}");
+                        Request.Server.Log(BeetleX.EventArgs.LogType.Error, $"gateway [{mRequestID}] {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} completed event error {e_.Message}@{e_.StackTrace}");
                     }
                 }
                 finally
@@ -399,6 +455,7 @@ namespace Bumblebee.Servers
                     }
                     else
                         Request.Recovery();
+                    Server.Push(mClientAgent);
                 }
 
             }

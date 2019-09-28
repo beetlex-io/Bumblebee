@@ -24,5 +24,9 @@ namespace Bumblebee.Events
         public int Code { get; private set; }
 
         public Routes.UrlRoute UrlRoute { get; internal set; }
+
+        public long RequestID { get; internal set; }
+
+        public string Error { get; internal set; }
     }
 }

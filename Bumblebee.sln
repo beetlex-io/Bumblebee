@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee", "Bumblebee\Bumb
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee.BaseSample", "Bumblebee.BaseSample\Bumblebee.BaseSample.csproj", "{C91ED49F-D3F3-467E-912C-1DF362A6523D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bumblebee.ConsoleServer", "Bumblebee.ConsoleServer\Bumblebee.ConsoleServer.csproj", "{E5615EE1-5D24-4718-B2C3-192CCF1C757B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee.ConsoleServer", "Bumblebee.ConsoleServer\Bumblebee.ConsoleServer.csproj", "{E5615EE1-5D24-4718-B2C3-192CCF1C757B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
