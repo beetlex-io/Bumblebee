@@ -1,91 +1,13 @@
-Bumblebee是`.netcore`下开源基于`BeetleX.FastHttpApi`扩展的HTTP微服务网关组件，它的主要作用是针对WebAPI集群服务作一个集中的转发和管理；作为应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等。它最大的一个特点是基于`C#`开发，你可以针对自己业务的需要对它进行扩展具体的业务功能。
+Bumblebee是一款基于`http 1.1`协议实现的服务网关，它可以应用到所有基于`http 1.1`的通讯服务上。它的重点是用于对WebAPI微服务集群服务负载和管理；作为微服务应用网关它提供了应用服务负载，故障迁移，安全控制，监控跟踪和日志处理等；不仅如此它强大的插件扩展功能，可以针对实业务情况进行不同的相关插件应用开发满足实际情况的需要。
 ![](https://i.imgur.com/uIb9y7I.jpg)
-## 帮助
-http://ikende.com/doc/
-## 独立部署+Web管理
-组件的部署一般根据自己的需要进行引用扩展功能，如果你只需要简单的应用服务负载、故障迁移和恢复等功能只需要下载[Bumblebee.Server](https://github.com/IKende/Bumblebee/tree/master/bin)下载最新版本的zip文件
-## Docker
-```
-docker pull ikende/beetlex_gateway
-```
-## 系统要求
-任何运行.net core 2.1或更高版本的操作系统(linux,windows等)，不同操作系统安装可查看[https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
-## 运行网关
-- windows `run.bat 或 dotnet Bumblebee.Server.dll `
-- linux `./run.sh 或 dotnet Bumblebee.Server.dll`
-## Web管理
-部署成功后可以通过以下`http://ipaddress:host/__admin/`网址访问网关的管理端，默认用户名是`admin`密码`123456`;通过管理界面可以添加服务配置负载规则和查看网关状态如下图:
-![](https://i.imgur.com/xc3dmLb.png)
-![](https://i.imgur.com/ajKS5T8.png)
-
-## HTTP配置
-'HttpConfig.json'是用于配置网关的HTTP服务信息，主要包括服务端，HTTPs和可处理的最大连接数等。
-```
-{
-  "HttpConfig": {
-    "Host": "",               //服务绑定的地址，不指定的情况默认绑定所有IPAddress.Any
-    "Port": 9090,          //网关对外服务端口
-    "SSL": false,          //是否开启HTTPs服务，如果开启默认绑定443端口
-    "CertificateFile": "",          //证书文件
-    "CertificatePassword": ",  //证书密码
-    "UseIPv6":true                  //是否开启ipv6
-  }
-}
-```
-## 网关策略配置
-'Gateway.json'主要用于配置负载的服务信息，主要包括负载的服务应用 和负载策略等
-```
-{
-  "Servers": [  //需要负载的服务应列表
-    {
-      "Uri": "http://192.168.2.19:9090/",  //服务地址，可指定域名
-      "MaxConnections": 1000   //指向服务的最大连接数
-    },
-    {
-      "Uri": "http://192.168.2.25:9090/",
-      "MaxConnections": 1000
-    }
-  ],
-  "Urls": [  //负载的Url策略
-    {
-      "Url": "*",   //*是优先级最低的匹配策略，优先级采用长正则匹配
-      "HashPattern": null, //一致负载描述，不配置的情况采用权重描述
-      "Servers": [   //对应Url负载的服务应
-        {
-          "Url": "http://192.168.2.19:9090/", //服务地址，可指定域名
-          "Weight": 10 ,  //对应的权重，区间在0-10之前，0一般情况不参与负载，只有当其他服务不可用的情况才加入
-           "MaxRps": 0  //RPS限制，默认零是作任何限制
-        },
-        {
-          "Url": "http://192.168.2.25:9090/",
-          "Weight": 5
-        }
-      ]
-    }
-  ]
-}
-```
-### HashPattern
-如果需要一致性负载的时候需要设置，可以通过获到Url,Header,QueryString等值作为一致性负载值。设置方式如下：
-```
-[host|url|baseurl|(h:name)|(q:name)]
-```
-可以根据实际情况选择其中一种方式
-
-- **Host**
-使用Header的Host作为一致性转发
-
-- **url**
-使用整个Url作为一致性转发
-
-- **baseurl**
-使用整个BaseUrl作为一致性转发
-
-- **h:name**
-使用某个Header值作为一致性转发
-
-- **q:name**
-使用某个QueryString值作为一致性转发
+## 主要功能
+- 服务管理，可以针对业务需要可以添加管理相应的服务应用
+- 动态路由管理，可以针对不同请求路径制定不同的负载方案；负载的方案调整都具备热更能力，并不需要重启即可完成相关调整。
+- 负载策略多样性，可以针对不同的路径和服务制定不同的负载方式，包括有：动太一致性，权重负载和限制请等.
+- 自动的负载故障和恢复迁移，组件对服务的可用性会进行一个可靠的管理，根据服务的可用性进行动态调整.
+- 完善的插件扩展机制，可以制定如管理，监控，日志和安全访问等等功能。
+- 支持`https`可以制定更安全的通讯服务管理
+- 支持`windows`,`linux`等多平台
 
 ## 性能测试(Bumblebee vs Ocelot)
 **测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
