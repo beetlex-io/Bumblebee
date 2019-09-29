@@ -48,7 +48,6 @@ BeetleX.Bumblebee.Configuration
                 o.Port = 80;
                 o.LogToConsole = true;
                 o.LogLevel = BeetleX.EventArgs.LogType.Error;
-                o.MaxConnections = 50000;
             });
             gateway.Open();
             gateway.LoadPlugin(typeof(Bumblebee.Configuration.Management).Assembly);
