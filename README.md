@@ -56,9 +56,9 @@ BeetleX.Bumblebee.Configuration
     }
 ```
 引用管理插件后即可通过以下地址访问管理界面`http://localhost/__system/bumblebee/`
-![image](https://user-images.githubusercontent.com/2564178/65813120-57f58c00-e203-11e9-9dfb-2f0a3c1dd6de.png)
-默认登陆用户名和密码是`admin`和`123456`,建议登陆后在配置页面上修改登陆密码。登陆后就进入网关的基础监控页面
 ![image](https://user-images.githubusercontent.com/2564178/65938281-24aa3b80-e455-11e9-8113-05ce661ee635.png)
+默认登陆用户名和密码是`admin`和`123456`,建议登陆后在配置页面上修改登陆密码。登陆后就进入网关的基础监控页面
+
 当服务和路由配置好后，就可能通过这个页面查看网关的运行情况；主要包括网关的基础资源信息，服务应用状况和不同`Url`的请求情况。由于这个插件还在完善中所以提供的功能并不够，只是一般的配置和监控。
 ### 服务配置简介
 ![image](https://user-images.githubusercontent.com/2564178/65813190-43fe5a00-e204-11e9-82fd-8ae273fc6f62.png)
@@ -66,6 +66,7 @@ BeetleX.Bumblebee.Configuration
 ### 路由配置简介
 ![image](https://user-images.githubusercontent.com/2564178/65813269-9ee48100-e205-11e9-96ae-823b8a7b4052.png)
 可以根据不同的`Url`制定不同的负载策略，策略调整保存后会马上生效并不需要重启服务程序。
+![image](https://user-images.githubusercontent.com/2564178/65939079-66d47c80-e457-11e9-926b-df64e5ff7ee3.png)
 ### 插件管理
 ![image](https://user-images.githubusercontent.com/2564178/65938554-d21d4f00-e455-11e9-80db-73de027dbb43.png)
 主要用于管理网关的插件，用于启用，停用或配置插件相关信息
