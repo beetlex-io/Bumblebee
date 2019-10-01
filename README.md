@@ -55,7 +55,10 @@ BeetleX.Bumblebee.Configuration
         }
     }
 ```
-引用管理插件后即可通过以下地址访问管理界面`http://localhost/__system/bumblebee/`
+或直接下载编译好的版本执行`dotnet GatewayServer.dll`
+[https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.2.zip](https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.2.zip)
+
+运行后即可通过以下地址访问管理界面`http://localhost/__system/bumblebee/`
 ![image](https://user-images.githubusercontent.com/2564178/65938281-24aa3b80-e455-11e9-8113-05ce661ee635.png)
 默认登陆用户名和密码是`admin`和`123456`,建议登陆后在配置页面上修改登陆密码。登陆后就进入网关的基础监控页面
 ![image](https://user-images.githubusercontent.com/2564178/65939079-66d47c80-e457-11e9-926b-df64e5ff7ee3.png)
