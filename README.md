@@ -71,7 +71,7 @@ BeetleX.Bumblebee.Configuration
 可以根据不同的`Url`制定不同的负载策略，策略调整保存后会马上生效并不需要重启服务程序。
 
 ### 插件管理
-![image](https://user-images.githubusercontent.com/2564178/65938554-d21d4f00-e455-11e9-80db-73de027dbb43.png)
+![image](https://user-images.githubusercontent.com/2564178/66125055-94b4ef00-e618-11e9-9a02-799e70cddb00.png)
 主要用于管理网关的插件，用于启用，停用或配置插件相关信息
 ![image](https://user-images.githubusercontent.com/2564178/65938394-6e932180-e455-11e9-947e-db0a5cfcb708.png)
 ### 日志查看
