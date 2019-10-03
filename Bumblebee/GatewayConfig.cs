@@ -8,9 +8,19 @@ namespace Bumblebee
     public class GatewayConfig
     {
 
+        public GatewayConfig()
+        {
+            GatewayQueueSize = Environment.ProcessorCount * 500;
+            InstanceID = Guid.NewGuid().ToString("N");
+        }
+
         public int AgentMaxConnection { get; set; } = 300;
 
-        public int AgentRequestQueueLength { get; set; } = 2000;
+        public int AgentRequestQueueSize { get; set; } = 2000;
+
+        public int GatewayQueueSize { get; set; }
+
+        public string InstanceID { get; set; }
 
         public List<ServerInfo> Servers { get; set; } = new List<ServerInfo>();
 
@@ -18,14 +28,18 @@ namespace Bumblebee
 
         public PluginConfig PluginConfig { get; set; } = new PluginConfig();
 
+        public Dictionary<string, bool> PluginsStatus = new Dictionary<string, bool>();
+
         public void From(Gateway gateway)
         {
             foreach (var server in gateway.Agents.Servers)
             {
-                Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(),Remark = server.Remark,Category= server.Category });
+                Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(), Remark = server.Remark, Category = server.Category });
             }
             this.AgentMaxConnection = gateway.AgentMaxConnection;
-            this.AgentRequestQueueLength = gateway.AgentRequestQueueSize;
+            this.AgentRequestQueueSize = gateway.AgentRequestQueueSize;
+            this.GatewayQueueSize = gateway.GatewayQueueSize;
+            this.InstanceID = gateway.InstanceID;
             UrlConfig urlConfig = new UrlConfig();
             urlConfig.From(gateway.Routes.Default);
             Urls.Add(urlConfig);
@@ -36,17 +50,21 @@ namespace Bumblebee
                 Urls.Add(urlConfig);
             }
             this.PluginConfig = new PluginConfig(gateway.Pluginer);
+            this.PluginsStatus = gateway.PluginCenter.PluginsStatus;
         }
 
         public void To(Gateway gateway)
         {
-            gateway.AgentRequestQueueSize = this.AgentRequestQueueLength;
+            gateway.AgentRequestQueueSize = this.AgentRequestQueueSize;
             gateway.AgentMaxConnection = this.AgentMaxConnection;
+            gateway.PluginCenter.PluginsStatus = this.PluginsStatus;
+            gateway.GatewayQueueSize = this.GatewayQueueSize;
+            gateway.InstanceID = this.InstanceID;
             this.PluginConfig.To(gateway.Pluginer);
 
             foreach (var server in Servers)
             {
-                gateway.SetServer(server.Uri,server.Category,server.Remark, server.MaxConnections);
+                gateway.SetServer(server.Uri, server.Category, server.Remark, server.MaxConnections);
             }
             foreach (var s in gateway.Agents.Servers)
             {
@@ -118,7 +136,7 @@ namespace Bumblebee
             {
                 gateway.RemoveRoute(Url);
 
-                var result = gateway.SetRoute(Url,Remark, HashPattern);
+                var result = gateway.SetRoute(Url, Remark, HashPattern);
                 this.PluginConfig.To(result.Pluginer);
                 foreach (var server in Servers)
                 {

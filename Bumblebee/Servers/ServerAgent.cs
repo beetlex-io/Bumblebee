@@ -90,7 +90,7 @@ namespace Bumblebee.Servers
                     }
                     if (Gateway.HttpServer.EnableLog(LogType.Debug))
                     {
-                        Gateway.HttpServer.Log(LogType.Debug, $"Verify {Uri} server error {e_.Message}  available[{Available}]");
+                        Gateway.HttpServer.Log(LogType.Debug, $"Gateway verify {Uri} server error {e_.Message}  available[{Available}]");
                     }
                 }
                 finally
@@ -111,7 +111,7 @@ namespace Bumblebee.Servers
                     {
                         if (Gateway.HttpServer.EnableLog(LogType.Info))
                         {
-                            Gateway.HttpServer.Log(LogType.Info, $"{Uri} server not available");
+                            Gateway.HttpServer.Log(LogType.Info, $"Gateway {Uri} server not available");
                         }
                     }
                     this.Available = false;
@@ -124,7 +124,7 @@ namespace Bumblebee.Servers
                 {
                     if (Gateway.HttpServer.EnableLog(LogType.Info))
                     {
-                        Gateway.HttpServer.Log(LogType.Info, $"{Uri} server available");
+                        Gateway.HttpServer.Log(LogType.Info, $"Gateway {Uri} server available");
                     }
                 }
                 this.Available = true;
@@ -244,7 +244,7 @@ namespace Bumblebee.Servers
                     Statistics.Add(Gateway.SERVER_AGENT_QUEUE_OVERFLOW, 0);
                     if (request.Server.EnableLog(LogType.Info))
                     {
-                        request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error  exceeding maximum number of connections");
+                        request.Server.Log(LogType.Info, $"Gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error  exceeding maximum number of connections");
                     }
                 }
                 else
@@ -259,7 +259,7 @@ namespace Bumblebee.Servers
             {
                 if (urlRoute.Gateway.HttpServer.EnableLog(LogType.Error))
                 {
-                    urlRoute.Gateway.HttpServer.Log(LogType.Error, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error {e_.Message}{e_.StackTrace}");
+                    urlRoute.Gateway.HttpServer.Log(LogType.Error, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error {e_.Message}{e_.StackTrace}");
                 }
             }
         }

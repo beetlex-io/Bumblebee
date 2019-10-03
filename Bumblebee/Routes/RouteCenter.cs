@@ -33,7 +33,7 @@ namespace Bumblebee.Routes
             urls.AddRange(mUrlRoutes.Values);
             urls.Sort((x, y) => y.UrlPattern.Length.CompareTo(x.UrlPattern.Length));
             mMatchRoutes = urls;
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway update route url data table");
+            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway update route url data table");
         }
 
         public void ReloadPlugin()
@@ -42,11 +42,11 @@ namespace Bumblebee.Routes
             {
                 foreach (var item in mUrlRoutes.Values)
                     item.Pluginer.Reload();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route reload plugin");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin");
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway route reload plugin error {e_.Message} {e_.StackTrace}");
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin error {e_.Message} {e_.StackTrace}");
             }
         }
 

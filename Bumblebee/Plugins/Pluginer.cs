@@ -56,7 +56,7 @@ namespace Bumblebee.Plugins
                 Events.EventRequestingArgs e = new Events.EventRequestingArgs(request, response, Gateway);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (!e.Cancel && items[i].Enabled)
+                    if (!e.Cancel && Gateway.PluginCenter.PluginIsEnabled(items[i]))
                         items[i].Execute(e);
                 }
                 return (!e.Cancel, e.ResultType);
@@ -114,7 +114,7 @@ namespace Bumblebee.Plugins
                 Events.EventAgentRequestingArgs e = new Events.EventAgentRequestingArgs(request, response, Gateway, server, urlRoute);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (!e.Cancel && items[i].Enabled)
+                    if (!e.Cancel && Gateway.PluginCenter.PluginIsEnabled(items[i]))
                         items[i].Execute(e);
                 }
                 return !e.Cancel;
@@ -171,7 +171,7 @@ namespace Bumblebee.Plugins
                 Events.EventHeaderWritingArgs e = new Events.EventHeaderWritingArgs(request, response, Gateway, header);
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (items[i].Enabled)
+                    if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
                         items[i].Execute(e);
                 }
             }
@@ -231,11 +231,11 @@ namespace Bumblebee.Plugins
                         requestAgent.Request, requestAgent.Response, Gateway, requestAgent.Code, requestAgent.Server, requestAgent.Time);
                         if (requestAgent.ResponseError != null)
                             requestAgent.EventRequestCompletedArgs.Error = requestAgent.ResponseError.Message;
-                        requestAgent.EventRequestCompletedArgs.RequestID = requestAgent.RequestID;
+                        requestAgent.EventRequestCompletedArgs.RequestID = requestAgent.Request.ID;
                     }
                     for (int i = 0; i < items.Length; i++)
                     {
-                        if (items[i].Enabled)
+                        if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
                             items[i].Execute(requestAgent.EventRequestCompletedArgs);
                     }
                 }
@@ -244,7 +244,7 @@ namespace Bumblebee.Plugins
             {
                 if (Gateway.HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
                 {
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {UrlRoute?.Url} process requeted error {e_.Message}{e_.StackTrace}");
+                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {requestAgent.Request.ID} {requestAgent.Request.RemoteIPAddress} {UrlRoute?.Url} process requeted event error {e_.Message}{e_.StackTrace}");
                 }
             }
 
@@ -299,7 +299,7 @@ namespace Bumblebee.Plugins
             {
                 for (int i = 0; i < items.Length; i++)
                 {
-                    if (items[i].Enabled)
+                    if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
                         items[i].Exeucte(e);
                 }
             }

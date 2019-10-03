@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
 using Newtonsoft.Json.Linq;
+using System.Linq;
 
 namespace Bumblebee.Plugins
 {
@@ -12,16 +13,65 @@ namespace Bumblebee.Plugins
         public PluginCenter(Gateway gateway)
         {
             Gateway = gateway;
-            GetServerHandlers = new PluginGroup<IGetServerHandler>(gateway);
-            LoaderHandlers = new PluginGroup<IGatewayLoader>(gateway);
-            AgentRequestingHandler = new PluginGroup<IAgentRequestingHandler>(gateway);
-            HeaderWritingHandlers = new PluginGroup<IHeaderWritingHandler>(gateway);
-            ResponseErrorHandlers = new PluginGroup<IResponseErrorHandler>(gateway);
-            RequestingHandlers = new PluginGroup<IRequestingHandler>(gateway);
-            RequestedHandlers = new PluginGroup<IRequestedHandler>(gateway);
+            GetServerHandlers = new PluginGroup<IGetServerHandler>(PluginType.GetAgentServer, gateway);
+            LoaderHandlers = new PluginGroup<IGatewayLoader>(PluginType.Loader, gateway);
+            AgentRequestingHandler = new PluginGroup<IAgentRequestingHandler>(PluginType.AgentRequesting, gateway);
+            HeaderWritingHandlers = new PluginGroup<IHeaderWritingHandler>(PluginType.HeaderWriting, gateway);
+            ResponseErrorHandlers = new PluginGroup<IResponseErrorHandler>(PluginType.ResponseError, gateway);
+            RequestingHandlers = new PluginGroup<IRequestingHandler>(PluginType.Requesting, gateway);
+            RequestedHandlers = new PluginGroup<IRequestedHandler>(PluginType.Requested, gateway);
             mPluginSettingFolder = AppDomain.CurrentDomain.BaseDirectory + "plugin_settings" + System.IO.Path.DirectorySeparatorChar;
             if (!System.IO.Directory.Exists(mPluginSettingFolder))
                 System.IO.Directory.CreateDirectory(mPluginSettingFolder);
+        }
+
+        public PluginInfo[] ListPluginInfos()
+        {
+
+            return (from a in mPlugins.Values select new PluginInfo(a)).ToArray();
+        }
+
+        private string mPluginSettingFolder;
+
+        private Dictionary<string, IPlugin> mPlugins = new Dictionary<string, IPlugin>();
+
+        public Dictionary<string, bool> PluginsStatus { get; internal set; } = new Dictionary<string, bool>();
+
+        public IPlugin GetPlugin(string name)
+        {
+            mPlugins.TryGetValue(name, out IPlugin result);
+            return result;
+        }
+
+        public bool PluginIsEnabled(IPlugin item)
+        {
+            if (item is IPluginStatus status)
+            {
+                return status.Enabled;
+            }
+            else
+            {
+                return true;
+            }
+
+        }
+
+        public void SetPluginEnabled(IPlugin item, bool enabled)
+        {
+            if (item is IPluginStatus)
+            {
+                PluginsStatus[item.Name] = enabled;
+                ((IPluginStatus)item).Enabled = enabled;
+                Gateway.SaveConfig();
+            }
+        }
+
+        private void InitPluginEnabled(IPlugin item)
+        {
+            if (item is IPluginStatus && PluginsStatus.TryGetValue(item.Name, out bool enabled))
+            {
+                ((IPluginStatus)item).Enabled = enabled;
+            }
         }
 
         public void SaveSetting(IPlugin plugin, bool overwrite = true)
@@ -76,8 +126,6 @@ namespace Bumblebee.Plugins
             }
         }
 
-        private string mPluginSettingFolder;
-
         public PluginGroup<IRequestedHandler> RequestedHandlers { get; private set; }
 
         public PluginGroup<IRequestingHandler> RequestingHandlers { get; private set; }
@@ -94,14 +142,16 @@ namespace Bumblebee.Plugins
 
         public Gateway Gateway { get; private set; }
 
-        public void Load(System.Reflection.Assembly assembly)
+        public int Load(System.Reflection.Assembly assembly)
         {
+            int count = 0;
             foreach (var t in assembly.GetTypes())
             {
                 if (t.GetInterface("IAgentRequestingHandler") != null && !t.IsAbstract && t.IsClass)
                 {
                     try
                     {
+                        count++;
                         var handler = (IAgentRequestingHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         AgentRequestingHandler.Add(handler);
@@ -119,12 +169,15 @@ namespace Bumblebee.Plugins
                                 route.Pluginer.SetAgentRequesting(handler.Name);
                             }
                         }
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
+
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} agent requesting handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} agent requesting handler error {e_.Message} {e_.StackTrace}");
                     }
 
                 }
@@ -134,6 +187,7 @@ namespace Bumblebee.Plugins
                 {
                     try
                     {
+                        count++;
                         var handler = (IHeaderWritingHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         HeaderWritingHandlers.Add(handler);
@@ -151,12 +205,14 @@ namespace Bumblebee.Plugins
                                 route.Pluginer.SetHeaderWriting(handler.Name);
                             }
                         }
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} header writing handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} header writing handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -165,16 +221,19 @@ namespace Bumblebee.Plugins
                 {
                     try
                     {
+                        count++;
                         var handler = (IResponseErrorHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         ResponseErrorHandlers.Add(handler);
                         Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] response error handler success");
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} response error handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} response error handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -183,6 +242,7 @@ namespace Bumblebee.Plugins
                 {
                     try
                     {
+                        count++;
                         var handler = (IRequestingHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         RequestingHandlers.Add(handler);
@@ -200,12 +260,14 @@ namespace Bumblebee.Plugins
                                 route.Pluginer.SetRequesting(handler.Name);
                             }
                         }
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} requesting handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} requesting handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -213,6 +275,7 @@ namespace Bumblebee.Plugins
                 {
                     try
                     {
+                        count++;
                         var handler = (IRequestedHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         RequestedHandlers.Add(handler);
@@ -230,12 +293,14 @@ namespace Bumblebee.Plugins
                                 route.Pluginer.SetRequested(handler.Name);
                             }
                         }
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} requested handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} requested handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -243,6 +308,7 @@ namespace Bumblebee.Plugins
                 {
                     try
                     {
+                        count++;
                         var handler = (IGetServerHandler)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         GetServerHandlers.Add(handler);
@@ -260,31 +326,40 @@ namespace Bumblebee.Plugins
                                 route.Pluginer.GetServerHandler = handler;
                             }
                         }
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} route get server handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} route get server handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
                 if (t.GetInterface("IGatewayLoader") != null && !t.IsAbstract && t.IsClass)
                 {
                     try
                     {
+                        count++;
                         var handler = (IGatewayLoader)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         LoaderHandlers.Add(handler);
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] gateway loader handler success");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.GetType()}[{assembly.GetName().Version}] gateway loader handler success");
+                        mPlugins[handler.Name] = handler;
+                        InitPluginEnabled(handler);
                         LoadSetting(handler);
                         SaveSetting(handler, false);
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} gateway loader handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} gateway loader handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
             }
+
+            return count;
         }
+
+
     }
 }

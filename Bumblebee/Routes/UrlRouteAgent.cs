@@ -25,7 +25,7 @@ namespace Bumblebee.Routes
             {
                 if (request.Server.EnableLog(LogType.Info))
                 {
-                    request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server unavailable");
+                    request.Server.Log(LogType.Info, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server unavailable");
                 }
 
                 Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(
@@ -52,7 +52,7 @@ namespace Bumblebee.Routes
                         UrlRoute.Gateway.ProcessError(Gateway.SERVER_MAX_OF_RPS, request);
                         if (request.Server.EnableLog(LogType.Info))
                         {
-                            request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding maximum number of RPS");
+                            request.Server.Log(LogType.Info, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding maximum number of RPS");
                         }
                     }
                 }
@@ -60,7 +60,7 @@ namespace Bumblebee.Routes
                 {
                     if (request.Server.EnableLog(LogType.Info))
                     {
-                        request.Server.Log(LogType.Info, $"gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding cancel");
+                        request.Server.Log(LogType.Info, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server exceeding cancel");
                     }
                 }
             }

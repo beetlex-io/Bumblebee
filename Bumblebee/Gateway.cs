@@ -74,7 +74,7 @@ namespace Bumblebee
             InstanceID = Guid.NewGuid().ToString("N");
         }
 
-        public string InstanceID { get; private set; }
+        public string InstanceID { get; internal set; }
 
         public int ThreadQueues { get; set; }
 
@@ -96,11 +96,19 @@ namespace Bumblebee
 
         public PluginCenter PluginCenter { get; private set; }
 
-        public void LoadPlugin(System.Reflection.Assembly assembly)
+        public Gateway LoadPlugin(params System.Reflection.Assembly[] assemblies)
         {
-            this.PluginCenter.Load(assembly);
-            Routes.ReloadPlugin();
-            this.Pluginer.Reload();
+            if (assemblies == null)
+                return this;
+            foreach (var item in assemblies)
+            {
+                if (this.PluginCenter.Load(item) > 0)
+                {
+                    Routes.ReloadPlugin();
+                    this.Pluginer.Reload();
+                }
+            }
+            return this;
         }
 
         private System.Threading.Timer mVerifyTimer;
@@ -121,7 +129,7 @@ namespace Bumblebee
             catch (Exception e_)
             {
                 if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
-                    HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Verify processing errors {e_.Message}");
+                    HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway verify processing errors {e_.Message}");
             }
             finally
             {
@@ -183,7 +191,7 @@ namespace Bumblebee
                 var ip = e.Request.RemoteIPAddress;
                 if (HttpServer.EnableLog(LogType.Info))
                 {
-                    HttpServer.Log(LogType.Info, $"gateway {e.Request.Method} {e.Request.Url} request from {ip}");
+                    HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.Method} {e.Request.Url} request from {ip}");
                 }
                 HttpServer.RequestExecting();
                 var result = this.Pluginer.Requesting(e.Request, e.Response);
@@ -194,7 +202,7 @@ namespace Bumblebee
                     {
                         if (HttpServer.EnableLog(LogType.Info))
                         {
-                            HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request cluster server unavailable");
+                            HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request cluster server unavailable");
                         }
                         EventResponseErrorArgs error = new EventResponseErrorArgs(
                             e.Request, e.Response, this, "Cluster server unavailable", Gateway.CLUSTER_SERVER_UNAVAILABLE
@@ -209,7 +217,7 @@ namespace Bumblebee
                         {
                             if (HttpServer.EnableLog(LogType.Info))
                             {
-                                HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing");
+                                HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing");
                             }
                             if (IOQueue.Count > GatewayQueueSize)
                             {
@@ -228,7 +236,7 @@ namespace Bumblebee
                         {
                             if (HttpServer.EnableLog(LogType.Info))
                             {
-                                HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing cancel!");
+                                HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request {item.UrlRoute.Url}'s route executing cancel!");
                             }
                             e.Cancel = result.Item2 == ResultType.Completed;
                             return;
@@ -239,7 +247,7 @@ namespace Bumblebee
                 {
                     if (HttpServer.EnableLog(LogType.Info))
                     {
-                        HttpServer.Log(LogType.Info, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request gateway executing cancel!");
+                        HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} request gateway executing cancel!");
                     }
                     e.Cancel = result.Item2 == ResultType.Completed;
                     return;
@@ -250,7 +258,7 @@ namespace Bumblebee
                 if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
                 {
                     HttpServer.Log(BeetleX.EventArgs.LogType.Error,
-                        $"gateway process {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.BaseUrl} error {e_.Message}@{e_.StackTrace}");
+                        $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.BaseUrl} process error {e_.Message}@{e_.StackTrace}");
                 }
             }
 
@@ -272,7 +280,7 @@ namespace Bumblebee
         {
             if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Warring))
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} error {e.Message}");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"Gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.Url} error {e.Message}");
             }
 
             HttpServer.RequestExecuted();
@@ -331,7 +339,7 @@ namespace Bumblebee
             //GatewayController controller = new GatewayController(this);
             //HttpServer.ActionFactory.Register(controller);
             PluginCenter.Load(typeof(Gateway).Assembly);
-            HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway server started [v:{this.GetType().Assembly.GetName().Version}]");
+            HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway server started [v:{this.GetType().Assembly.GetName().Version}]");
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);
 
         }
@@ -348,11 +356,11 @@ namespace Bumblebee
             try
             {
                 GatewayConfig.SaveConfig(this);
-                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway save config success");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway save config success");
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway save config error  {e_.Message}");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway save config error  {e_.Message}");
             }
 
         }
@@ -367,7 +375,7 @@ namespace Bumblebee
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load config error  {e_.Message}");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
             }
         }
 
@@ -376,11 +384,11 @@ namespace Bumblebee
             try
             {
                 config.To(this);
-                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load config success");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway load config success");
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load config error  {e_.Message}");
+                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
             }
         }
 
@@ -419,7 +427,7 @@ namespace Bumblebee
                 if (HttpServer.EnableLog(LogType.Error))
                 {
                     HttpServer.Log(LogType.Error,
-                        $"gateway {e.Item2.RemoteIPAddress} {e.Item2.Method} {e.Item2.Url} route executing error {e_.Message}{e_.StackTrace}");
+                        $"Gateway {e.Item2.RemoteIPAddress} {e.Item2.Method} {e.Item2.Url} route executing error {e_.Message}{e_.StackTrace}");
                 }
             }
         }

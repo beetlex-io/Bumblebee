@@ -39,11 +39,11 @@ namespace Bumblebee.Routes
                     var requestHashBuilder = new RequestHashBuilder(hashPattern);
                     requestHashBuilder.Build();
                     mRequestHashBuilder = requestHashBuilder;
-                    this.Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway build {this.Url} {hashPattern} hash regex success");
+                    this.Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway build {this.Url} {hashPattern} hash regex success");
                 }
                 catch (Exception e_)
                 {
-                    this.Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway build {this.Url} {hashPattern} hash regex error {e_.Message}");
+                    this.Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway build {this.Url} {hashPattern} hash regex error {e_.Message}");
                 }
             }
             else

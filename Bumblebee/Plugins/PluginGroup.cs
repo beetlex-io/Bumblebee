@@ -9,26 +9,23 @@ namespace Bumblebee.Plugins
     public class PluginGroup<T> where T : IPlugin
     {
 
-        public PluginGroup(Gateway gateway)
+        public PluginGroup(PluginType type, Gateway gateway)
         {
+
             Gateway = gateway;
         }
 
-        public IEnumerable<PluginInfo> Infos
+        public PluginInfo[] Infos
         {
             get
             {
-                return from a in mPlugins.Values
-                       select new PluginInfo
-                       {
-                           Name = a.Name,
-                           Version = a.GetType().Assembly.GetName().Version.ToString(),
-                           Assembly = a.GetType().Assembly.GetName().Name ,
-                           Description = a.Description
-                       };
+                return (from a in mPlugins.Values
+                        select new PluginInfo(a)).ToArray();
+                     ;
             }
         }
 
+        public PluginType Type { get; private set; }
 
         private ConcurrentDictionary<string, T> mPlugins = new ConcurrentDictionary<string, T>();
 
