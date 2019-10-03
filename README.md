@@ -56,7 +56,7 @@ BeetleX.Bumblebee.Configuration
     }
 ```
 或直接下载编译好的版本执行`dotnet GatewayServer.dll`
-[https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.2.zip](https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.2.zip)
+[https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.6.zip](https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.6.zip)
 
 运行后即可通过以下地址访问管理界面`http://localhost/__system/bumblebee/`
 ![image](https://user-images.githubusercontent.com/2564178/65938281-24aa3b80-e455-11e9-8113-05ce661ee635.png)
