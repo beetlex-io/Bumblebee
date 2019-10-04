@@ -20,9 +20,11 @@ namespace Bumblebee.BaseSample
 
             });
             g.LoadPlugin(typeof(Program).Assembly);
-            g.SetServer("http://localhost:5000").AddUrl("*", 0, 0);
-            g.Pluginer.SetResponseError("CustomResponError");
+            g.SetServer("http://192.168.2.25:9090").AddUrl("*", 0, 0);
+            g.SetServer("http://192.168.2.26:9090").AddUrl("*", 0, 0);
             g.Open();
+            g.Pluginer.SetRequesting("RequestingTest");
+            g.Pluginer.SetRequested("RequestedTest");
             Console.Read();
         }
 
@@ -30,34 +32,6 @@ namespace Bumblebee.BaseSample
 
     }
 
-    public class CustomResponError : Plugins.IResponseErrorHandler
-    {
-        public string Name => "CustomResponError";
-
-        public string Description => "CustomResponError";
-
-        public bool Enabled { get; set; } = true;
-
-        public void Exeucte(EventResponseErrorArgs e)
-        {
-            Console.WriteLine(e.Result);
-        }
-
-        public void Init(Gateway gateway, Assembly assembly)
-        {
-
-        }
-
-        public void LoadSetting(JToken setting)
-        {
-
-        }
-
-        public object SaveSetting()
-        {
-            return null;
-        }
-    }
 
     public class RequestingTest : Plugins.IRequestingHandler
     {
@@ -65,70 +39,11 @@ namespace Bumblebee.BaseSample
 
         public string Description => "RequestingTest";
 
-        public bool Enabled { get; set; } = true;
-
         public void Execute(EventRequestingArgs e)
         {
-            e.Gateway.Response(e.Response, new NotFoundResult("Gateway not found!"));
-            e.Cancel = true;
-        }
-
-        public void Init(Gateway gateway, Assembly assembly)
-        {
-
-        }
-
-        public void LoadSetting(JToken setting)
-        {
-
-        }
-
-        public object SaveSetting()
-        {
-            return null;
-        }
-    }
-
-    public class AgentRequestingTest : Plugins.IAgentRequestingHandler
-    {
-        public string Name => "AgentRequestingTest";
-
-        public string Description => "AgentRequestingTest";
-
-        public bool Enabled { get; set; } = true;
-
-        public void Execute(EventAgentRequestingArgs e)
-        {
-            Console.WriteLine("AgentRequestingTest");
-        }
-
-        public void Init(Gateway gateway, Assembly assembly)
-        {
-
-        }
-
-        public void LoadSetting(JToken setting)
-        {
-
-        }
-
-        public object SaveSetting()
-        {
-            return null;
-        }
-    }
-
-    public class HeaderWritingTest : Plugins.IHeaderWritingHandler
-    {
-        public string Name => "HeaderWritingTest";
-
-        public string Description => "HeaderWritingTest";
-
-        public bool Enabled { get; set; } = true;
-
-        public void Execute(EventHeaderWritingArgs e)
-        {
-            e.Header.Add("username", "henryfan");
+            //e.Gateway.Response(e.Response, new NotFoundResult("Gateway not found!"));
+            //e.Cancel = true;
+            Console.WriteLine($"{e.Request.Url} requesting");
         }
 
         public void Init(Gateway gateway, Assembly assembly)
@@ -153,11 +68,9 @@ namespace Bumblebee.BaseSample
 
         public string Description => "RequestedTest";
 
-        public bool Enabled { get; set; } = true;
-
         public void Execute(EventRequestCompletedArgs e)
         {
-            Console.WriteLine("RequestedTest");
+            Console.WriteLine($"{e.Url} request to {e.Server.Uri} user time {e.Time}ms");
         }
 
         public void Init(Gateway gateway, Assembly assembly)

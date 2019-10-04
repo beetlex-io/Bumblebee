@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BeetleX.FastHttpAPI\BeetleX.FastHttpApi.csproj" />
+    <PackageReference Include="BeetleX.FastHttpApi" Version="1.6.2" />
   </ItemGroup>
 
 </Project>
