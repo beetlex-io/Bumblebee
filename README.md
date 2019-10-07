@@ -8,6 +8,9 @@ Bumblebee是一款基于`http 1.1`协议实现的服务网关，它可以应用�
 - 完善的插件扩展机制，可以制定如管理，监控，日志和安全访问等等功能。
 - 支持`https`可以制定更安全的通讯服务应用
 - 支持`windows`,`linux`等多平台
+## 相关更新记录
+[https://github.com/IKende/Bumblebee/issues/17](https://github.com/IKende/Bumblebee/issues/17)
+
 ## 部署使用
  新建一个控制台程序后引用组件
 ```
