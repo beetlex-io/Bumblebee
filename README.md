@@ -8,8 +8,15 @@ Bumblebee是一款基于`http 1.1`协议实现的服务网关，它可以应用�
 - 完善的插件扩展机制，可以制定如管理，监控，日志和安全访问等等功能。
 - 支持`https`可以制定更安全的通讯服务应用
 - 支持`windows`,`linux`等多平台
-## 相关更新记录
-[https://github.com/IKende/Bumblebee/issues/17](https://github.com/IKende/Bumblebee/issues/17)
+## 可用插件
+|名称|功能描述|
+|----|-------|
+|[BeetleX.Bumblebee.Configuration](https://www.nuget.org/packages/BeetleX.Bumblebee.Configuration/)|配置管理插件，用于网关管理，负载配置，日志查看和插件管理等|
+|[BeetleX.Bumblebee.Jwt](https://www.nuget.org/packages/BeetleX.Bumblebee.Jwt/)|JWT验证插件，可以通过这插件配置统一请求验证|
+|[BeetleX.Bumblebee.Logs](https://www.nuget.org/packages/BeetleX.Bumblebee.Logs/)|请求日志记录插件，可以配置把请求日志存储到文件或数据库|
+|[BeetleX.Bumblebee.ConcurrentLimits](https://www.nuget.org/packages/BeetleX.Bumblebee.ConcurrentLimits/)|并发控制插件，可以对请求的IP和相关URL配置并发限制，控制服务平稳运行|
+
+**[相关使用文档](https://github.com/IKende/Bumblebee/wiki)**
 
 ## 部署使用
  新建一个控制台程序后引用组件
