@@ -240,8 +240,6 @@ namespace Bumblebee.Servers
                     Events.EventResponseErrorArgs erea = new Events.EventResponseErrorArgs(request, response,
                        Gateway, error, Gateway.SERVER_AGENT_QUEUE_OVERFLOW);
                     Gateway.OnResponseError(erea);
-                    Gateway.ProcessError(Gateway.SERVER_AGENT_QUEUE_OVERFLOW, request);
-                    Statistics.Add(Gateway.SERVER_AGENT_QUEUE_OVERFLOW, 0);
                     if (request.Server.EnableLog(LogType.Info))
                     {
                         request.Server.Log(LogType.Info, $"Gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.Url} route to {Uri} error  exceeding maximum number of connections");

@@ -35,7 +35,7 @@ namespace Bumblebee.Plugins
             else
             {
                 mRequestingHandlerMap[name] = item;
-                mRequestingHandlers = mRequestingHandlerMap.Values.ToArray();
+                mRequestingHandlers = (from a in mRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requesting handler ");
             }
         }
@@ -43,7 +43,7 @@ namespace Bumblebee.Plugins
         public void RemoveRequesting(string name)
         {
             mRequestingHandlerMap.TryRemove(name, out IRequestingHandler item);
-            mRequestingHandlers = mRequestingHandlerMap.Values.ToArray();
+            mRequestingHandlers = (from a in mRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requesting handler ");
         }
 
@@ -94,7 +94,7 @@ namespace Bumblebee.Plugins
             else
             {
                 mAgentRequestingHandlerMap[name] = item;
-                mAgentRequestingHandlers = mAgentRequestingHandlerMap.Values.ToArray();
+                mAgentRequestingHandlers = (from a in mAgentRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} agent requesting handler ");
             }
         }
@@ -102,7 +102,7 @@ namespace Bumblebee.Plugins
         public void RemoveAgentRequesting(string name)
         {
             mAgentRequestingHandlerMap.TryRemove(name, out IAgentRequestingHandler item);
-            mAgentRequestingHandlers = mAgentRequestingHandlerMap.Values.ToArray();
+            mAgentRequestingHandlers = (from a in mAgentRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} agent requesting handler ");
         }
 
@@ -151,7 +151,7 @@ namespace Bumblebee.Plugins
             else
             {
                 mHeaderWritingHandlerMap[name] = item;
-                mHeaderWritingHandlers = mHeaderWritingHandlerMap.Values.ToArray();
+                mHeaderWritingHandlers = (from a in mHeaderWritingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} header writing handler ");
             }
         }
@@ -159,7 +159,7 @@ namespace Bumblebee.Plugins
         public void RemoveHeaderWriting(string name)
         {
             mHeaderWritingHandlerMap.TryRemove(name, out IHeaderWritingHandler item);
-            mHeaderWritingHandlers = mHeaderWritingHandlerMap.Values.ToArray();
+            mHeaderWritingHandlers = (from a in mHeaderWritingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} header writing handler ");
         }
 
@@ -206,7 +206,7 @@ namespace Bumblebee.Plugins
             else
             {
                 mRequestedHandlerMap[name] = item;
-                mRequestedHandlers = mRequestedHandlerMap.Values.ToArray();
+                mRequestedHandlers = (from a in mRequestedHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requested handler ");
             }
         }
@@ -214,29 +214,39 @@ namespace Bumblebee.Plugins
         public void RemoveRequested(string name)
         {
             mRequestedHandlerMap.TryRemove(name, out IRequestedHandler item);
-            mRequestedHandlers = mRequestedHandlerMap.Values.ToArray();
+            mRequestedHandlers = (from a in mRequestedHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requested handler ");
         }
 
-        public void Requested(Servers.RequestAgent requestAgent)
+        public bool RequestedEnabled
+        {
+            get
+            {
+                bool enabled = false;
+                var items = mRequestedHandlers;
+                if (items.Length > 0)
+                {
+                    for (int i = 0; i < items.Length; i++)
+                    {
+                        if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
+                            return true;
+                    }
+                }
+                return enabled;
+            }
+        }
+
+        public void Requested(Events.EventRequestCompletedArgs e)
         {
             try
             {
                 var items = mRequestedHandlers;
                 if (items.Length > 0)
                 {
-                    if (requestAgent.EventRequestCompletedArgs == null)
-                    {
-                        requestAgent.EventRequestCompletedArgs = new Events.EventRequestCompletedArgs(requestAgent.UrlRoute,
-                        requestAgent.Request, requestAgent.Response, Gateway, requestAgent.Code, requestAgent.Server, requestAgent.Time);
-                        if (requestAgent.ResponseError != null)
-                            requestAgent.EventRequestCompletedArgs.Error = requestAgent.ResponseError.Message;
-                        requestAgent.EventRequestCompletedArgs.RequestID = requestAgent.Request.ID;
-                    }
                     for (int i = 0; i < items.Length; i++)
                     {
                         if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                            items[i].Execute(requestAgent.EventRequestCompletedArgs);
+                            items[i].Execute(e);
                     }
                 }
             }
@@ -244,10 +254,9 @@ namespace Bumblebee.Plugins
             {
                 if (Gateway.HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
                 {
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {requestAgent.Request.ID} {requestAgent.Request.RemoteIPAddress} {UrlRoute?.Url} process requeted event error {e_.Message}{e_.StackTrace}");
+                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {e.RequestID} {e.RemoteIPAddress} {UrlRoute?.Url} process requeted event error {e_.Message}{e_.StackTrace}");
                 }
             }
-
         }
 
         private void ReloadRequested()
@@ -279,7 +288,7 @@ namespace Bumblebee.Plugins
             else
             {
                 mResponseErrorHandlerMap[name] = item;
-                responseErrorHandlers = mResponseErrorHandlerMap.Values.ToArray();
+                responseErrorHandlers = (from a in mResponseErrorHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
                 Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} response error handler ");
             }
 
@@ -288,7 +297,7 @@ namespace Bumblebee.Plugins
         public void RemoveResponseError(string name)
         {
             mResponseErrorHandlerMap.TryRemove(name, out IResponseErrorHandler value);
-            responseErrorHandlers = mResponseErrorHandlerMap.Values.ToArray();
+            responseErrorHandlers = (from a in mResponseErrorHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} response error handler ");
         }
 
@@ -314,6 +323,7 @@ namespace Bumblebee.Plugins
         }
 
         #endregion
+
 
         #region get server
 
@@ -350,6 +360,65 @@ namespace Bumblebee.Plugins
         #endregion
 
 
+        #region responding
+
+        private ConcurrentDictionary<string, IRespondingHandler> mRespondingHandlerMap = new ConcurrentDictionary<string, IRespondingHandler>();
+
+        private IRespondingHandler[] mRespondingHandlers = new IRespondingHandler[0];
+
+        public PluginInfo[] RespondingInfos => (from a in mRespondingHandlerMap.Values select new PluginInfo(a)).ToArray();
+
+        public void SetResponding(string name)
+        {
+            var item = Gateway.PluginCenter.RespondingHandlers.Get(name);
+            if (item == null)
+            {
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} responding handler not found");
+            }
+            else
+            {
+                mRespondingHandlerMap[name] = item;
+                mRespondingHandlers = (from a in mRespondingHandlerMap.Values orderby (int)a.Level descending select (a)).ToArray();
+                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} responding handler ");
+            }
+        }
+
+        public void RemoveResponding(string name)
+        {
+            mRespondingHandlerMap.TryRemove(name, out IRespondingHandler item);
+            mRespondingHandlers = (from a in mRespondingHandlerMap.Values orderby (int)a.Level descending select (a)).ToArray();
+            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} responding handler ");
+        }
+
+
+        public void Responding(EventRespondingArgs e)
+        {
+            var items = mRespondingHandlers;
+            if (items.Length > 0)
+            {
+                for (int i = 0; i < items.Length; i++)
+                {
+                    if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
+                        items[i].Exeucte(e);
+                }
+            }
+        }
+
+
+        private void ReloadResponding()
+        {
+            foreach (var item in mRespondingHandlerMap.Keys)
+            {
+                SetResponding(item);
+            }
+        }
+
+
+        #endregion
+
+
+
+
         public Routes.UrlRoute UrlRoute { get; private set; }
 
         public Gateway Gateway { get; private set; }
@@ -362,6 +431,7 @@ namespace Bumblebee.Plugins
             this.ReloadRequested();
             this.ReloadRequesting();
             this.ReloadGetServerHandler();
+            this.ReloadResponding();
         }
     }
 }

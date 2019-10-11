@@ -6,17 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BeetleX.Bumblebee.Configuration" Version="1.1.7" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bumblebee\Bumblebee.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Gateway.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="HttpConfig.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -31,7 +31,7 @@ namespace Bumblebee.Servers
             UrlServerInfo = urlServerInfo;
             UrlRoute = urlRoute;
             mStartTime = TimeWatch.GetElapsedMilliseconds();
-            mRequestID = System.Threading.Interlocked.Increment(ref mRequestIDSqueue);
+            mRequestID = request.ID;
             //System.Threading.Interlocked.Increment(ref RequestCount);
             //mHistoryRequests[mRequestID] = this;
         }
@@ -42,15 +42,21 @@ namespace Bumblebee.Servers
 
         //public static ConcurrentDictionary<long, RequestAgent> mHistoryRequests = new ConcurrentDictionary<long, RequestAgent>();
 
-        private Header mResultHeader = new Header();
 
-        private static long mRequestIDSqueue;
+
+        private Header mResponseHeader = new Header();
+
+        public Header ResponseHeader => mResponseHeader;
 
         private long mStartTime;
 
         private long mRequestID;
 
         public long RequestID => mRequestID;
+
+        public int BodyReceives { get; private set; } = 0;
+
+        public string ResponseStatus { get; private set; }
 
         private byte[] mBuffer;
 
@@ -77,8 +83,6 @@ namespace Bumblebee.Servers
         public int Code { get; set; }
 
         public RequestStatus Status { get; set; }
-
-        public EventRequestCompletedArgs EventRequestCompletedArgs { get; set; }
 
         public EventResponseErrorArgs ResponseError { get; set; }
 
@@ -120,7 +124,7 @@ namespace Bumblebee.Servers
             return Request.Session.Stream.ToPipeStream();
         }
 
-        private void ResponseStatus(PipeStream pipeStream)
+        private void OnReadResponseStatus(PipeStream pipeStream)
         {
             if (Status == RequestStatus.Responding)
             {
@@ -130,13 +134,14 @@ namespace Bumblebee.Servers
                     pipeStream.Read(mBuffer, 0, indexof.Length);
                     GetRequestStream().Write(mBuffer, 0, indexof.Length);
                     var result = HttpParse.AnalyzeResponseLine(new ReadOnlySpan<byte>(mBuffer, 0, indexof.Length - 2));
+                    ResponseStatus = Encoding.ASCII.GetString(mBuffer, 0, indexof.Length - 2);
                     Code = result.Item2;
                     Status = RequestStatus.RespondingHeader;
                 }
             }
         }
 
-        private void ResponseHeader(PipeStream pipeStream)
+        private void OnReadResponseHeader(PipeStream pipeStream)
         {
             if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
             {
@@ -157,8 +162,8 @@ namespace Bumblebee.Servers
                         {
                             agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
                         }
-                        UrlRoute.Pluginer.HeaderWriting(Request, Response, mResultHeader);
-                        mResultHeader.Write(agentStream);
+                        UrlRoute.Pluginer.HeaderWriting(Request, Response, mResponseHeader);
+                        mResponseHeader.Write(agentStream);
                         if (Server.Gateway.OutputServerAddress)
                         {
                             agentStream.Write("Logic-Server: " + Server.ServerName + "\r\n");
@@ -185,11 +190,11 @@ namespace Bumblebee.Servers
                         if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
                         {
 
-                            mResultHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
+                            mResponseHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
                         }
                         else
                         {
-                            mResultHeader.Add(header.Item1, header.Item2);
+                            mResponseHeader.Add(header.Item1, header.Item2);
                         }
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
@@ -197,7 +202,7 @@ namespace Bumblebee.Servers
             }
         }
 
-        private void ResponseBody(PipeStream pipeStream)
+        private void OnReadResponseBody(PipeStream pipeStream)
         {
 
             PipeStream agentStream = GetRequestStream();
@@ -209,6 +214,7 @@ namespace Bumblebee.Servers
                     while (pipeStream.Length > 0)
                     {
                         var len = pipeStream.Read(mBuffer, 0, mBuffer.Length);
+                        BodyReceives++;
                         if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                         {
                             Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
@@ -225,12 +231,14 @@ namespace Bumblebee.Servers
                         }
                         if (end)
                         {
+                            Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), true);
                             OnCompleted(null);
                             Request.Session.Stream.Flush();
                             return;
                         }
                         else
                         {
+                            Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
                             if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
                                 Request.Session.Stream.Flush();
 
@@ -247,9 +255,11 @@ namespace Bumblebee.Servers
                     }
                     while (pipeStream.Length > 0)
                     {
+                        var len = 0;
                         if (mRequestLength > 0)
                         {
-                            var len = pipeStream.Read(mBuffer, 0, mBuffer.Length);
+                            len = pipeStream.Read(mBuffer, 0, mBuffer.Length);
+                            BodyReceives++;
                             if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                             {
                                 Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
@@ -259,12 +269,14 @@ namespace Bumblebee.Servers
                         }
                         if (mRequestLength == 0)
                         {
+                            Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), true);
                             OnCompleted(null);
                             Request.Session.Stream.Flush();
                             return;
                         }
                         else
                         {
+                            Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
                             if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
                                 Request.Session.Stream.Flush();
                         }
@@ -279,9 +291,9 @@ namespace Bumblebee.Servers
             PipeStream stream = reader.Stream.ToPipeStream();
             if (Status >= RequestStatus.Responding)
             {
-                ResponseStatus(stream);
-                ResponseHeader(stream);
-                ResponseBody(stream);
+                OnReadResponseStatus(stream);
+                OnReadResponseHeader(stream);
+                OnReadResponseBody(stream);
             }
             else
             {
@@ -435,7 +447,8 @@ namespace Bumblebee.Servers
                             Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} completed code {Code} use time:{Time}ms");
                         }
                     }
-                    UrlRoute.Pluginer.Requested(this);
+                    if (UrlRoute.Pluginer.RequestedEnabled)
+                        UrlRoute.Pluginer.Requested(this.GetEventRequestCompletedArgs());
                     Completed?.Invoke(this);
 
                 }
@@ -470,6 +483,27 @@ namespace Bumblebee.Servers
             Responding = 8,
             RespondingHeader = 32,
             RespondingBody = 64
+        }
+
+        private EventRequestCompletedArgs eventRequestCompletedArgs;
+
+        public EventRequestCompletedArgs GetEventRequestCompletedArgs()
+        {
+            if (eventRequestCompletedArgs == null)
+            {
+                eventRequestCompletedArgs = new EventRequestCompletedArgs(
+                  this.UrlRoute,
+                  this.Request,
+                  this.Response,
+                  this.Server.Gateway,
+                  this.Code,
+                  this.Server,
+                  this.Time,
+                  this.Request.ID,
+                  ResponseError != null ? ResponseError.Message : null
+                  );
+            }
+            return eventRequestCompletedArgs;
         }
     }
 }

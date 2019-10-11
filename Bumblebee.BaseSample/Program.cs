@@ -2,6 +2,7 @@
 using System.Reflection;
 using BeetleX.FastHttpApi;
 using Bumblebee.Events;
+using Bumblebee.Plugins;
 using Bumblebee.Servers;
 using Newtonsoft.Json.Linq;
 
@@ -39,6 +40,8 @@ namespace Bumblebee.BaseSample
 
         public string Description => "RequestingTest";
 
+        public PluginLevel Level => PluginLevel.None;
+
         public void Execute(EventRequestingArgs e)
         {
             //e.Gateway.Response(e.Response, new NotFoundResult("Gateway not found!"));
@@ -67,6 +70,8 @@ namespace Bumblebee.BaseSample
         public string Name => "RequestedTest";
 
         public string Description => "RequestedTest";
+
+        public PluginLevel Level => PluginLevel.None;
 
         public void Execute(EventRequestCompletedArgs e)
         {

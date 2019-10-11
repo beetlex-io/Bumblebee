@@ -5,12 +5,14 @@ using System.Text;
 
 namespace Bumblebee.Events
 {
-    public class EventRequestCompletedArgs : EventArgs
+    public class EventRequestCompletedArgs
     {
         public EventRequestCompletedArgs(Routes.UrlRoute urlRoute, HttpRequest request, HttpResponse response, Gateway gateway, int code,
-            Servers.ServerAgent server, long useTime)
+            Servers.ServerAgent server, long useTime, long requestid, string error)
 
         {
+            Error = error;
+            RequestID = requestid;
             Gateway = gateway;
             BaseUrl = request.BaseUrl;
             Url = request.Url;
@@ -29,15 +31,15 @@ namespace Bumblebee.Events
 
         public string Path { get; set; }
 
-        public Gateway Gateway { get; private set; }
+        public Gateway Gateway { get; set; }
 
-        public string RemoteIPAddress { get; private set; }
+        public string RemoteIPAddress { get; set; }
 
-        public IDictionary<string, object> Data { get; private set; }
+        public IDictionary<string, object> Data { get; set; }
 
-        public IDictionary<string, string> Cookies { get; private set; }
+        public IDictionary<string, string> Cookies { get; set; }
 
-        public IDictionary<string, string> Headers { get; private set; }
+        public IDictionary<string, string> Headers { get; set; }
 
         public string Method { get; set; }
 
