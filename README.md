@@ -15,6 +15,8 @@ Bumblebee是一款基于`http 1.1`协议实现的服务网关，它可以应用�
 |[BeetleX.Bumblebee.Jwt](https://www.nuget.org/packages/BeetleX.Bumblebee.Jwt/)|JWT验证插件，可以通过这插件配置统一请求验证|
 |[BeetleX.Bumblebee.Logs](https://www.nuget.org/packages/BeetleX.Bumblebee.Logs/)|请求日志记录插件，可以配置把请求日志存储到文件或数据库|
 |[BeetleX.Bumblebee.ConcurrentLimits](https://www.nuget.org/packages/BeetleX.Bumblebee.ConcurrentLimits/)|并发控制插件，可以对请求的IP和相关URL配置并发限制，控制服务平稳运行|
+|[BeetleX.Bumblebee.Caching](https://www.nuget.org/packages/BeetleX.Bumblebee.Caching/)|网关请求缓存插件|
+
 
 **[相关使用文档](https://github.com/IKende/Bumblebee/wiki)**
 
