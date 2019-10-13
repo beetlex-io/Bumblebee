@@ -19,8 +19,9 @@ Bumblebee是一款基于`http 1.1`协议实现的服务网关，它可以应用�
 
 
 **[相关使用文档](https://github.com/IKende/Bumblebee/wiki)**
-
-## 部署使用
+## 下载运行版(linux/windows .net core 2.1或更高版本)
+https://github.com/IKende/Bumblebee/tree/master/bin
+## 使用
  新建一个控制台程序后引用组件
 ```
 BeetleX.Bumblebee
@@ -67,8 +68,6 @@ BeetleX.Bumblebee.Configuration
         }
     }
 ```
-或直接下载编译好的版本执行`dotnet GatewayServer.dll`
-[https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.6.zip](https://github.com/IKende/Bumblebee/blob/master/bin/Bumblebee1.0.6.zip)
 
 运行后即可通过以下地址访问管理界面`http://localhost/__system/bumblebee/`
 ![image](https://user-images.githubusercontent.com/2564178/65938281-24aa3b80-e455-11e9-8113-05ce661ee635.png)
