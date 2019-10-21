@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BeetleX.Buffers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,12 @@ namespace Bumblebee
 
         public int GatewayQueueSize { get; set; }
 
+        public bool OutputServerAddress { get; set; }
+
+        public int BufferSize { get; set; }
+
+        public int PoolMaxSize { get; set; }
+
         public string InstanceID { get; set; }
 
         public List<ServerInfo> Servers { get; set; } = new List<ServerInfo>();
@@ -32,10 +39,14 @@ namespace Bumblebee
 
         public void From(Gateway gateway)
         {
+
+            this.BufferSize = gateway.BufferSize;
+            this.PoolMaxSize = gateway.PoolMaxSize;
             foreach (var server in gateway.Agents.Servers)
             {
                 Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(), Remark = server.Remark, Category = server.Category });
             }
+            this.OutputServerAddress = gateway.OutputServerAddress;
             this.AgentMaxConnection = gateway.AgentMaxConnection;
             this.AgentRequestQueueSize = gateway.AgentRequestQueueSize;
             this.GatewayQueueSize = gateway.GatewayQueueSize;
@@ -55,7 +66,19 @@ namespace Bumblebee
 
         public void To(Gateway gateway)
         {
+            if (this.PoolMaxSize > 0)
+            {
+                gateway.PoolMaxSize = this.PoolMaxSize;
+            }
+            if (this.BufferSize > 0)
+            {
+                gateway.BufferSize = this.BufferSize;
+            }
+
+            BufferPool.BUFFER_SIZE = gateway.BufferSize;
+            BufferPool.POOL_MAX_SIZE = gateway.PoolMaxSize;
             gateway.AgentRequestQueueSize = this.AgentRequestQueueSize;
+            gateway.OutputServerAddress = this.OutputServerAddress;
             gateway.AgentMaxConnection = this.AgentMaxConnection;
             gateway.PluginCenter.PluginsStatus = this.PluginsStatus;
             gateway.GatewayQueueSize = this.GatewayQueueSize;

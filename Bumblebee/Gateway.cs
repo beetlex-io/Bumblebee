@@ -16,13 +16,19 @@ namespace Bumblebee
     public class Gateway : IDisposable
     {
 
+        public const int CACHE_HIT = 311;
+
         public const int CLUSTER_SERVER_UNAVAILABLE = 590;
 
         public const int URL_NODE_SERVER_UNAVAILABLE = 591;
 
         public const int GATEWAY_QUEUE_OVERFLOW = 592;
 
-        public const int URL_FILTER_ERROR = 592;
+        public const int URL_FILTER_ERROR = 593;
+
+        public const int IP_LIMITS_ERROR = 594;
+
+        public const int URL_LIMITS_ERROR = 595;
 
         public const int REMOTE_CLIENT_CLOSE = 560;
 
@@ -40,9 +46,9 @@ namespace Bumblebee
 
         public const int SERVER_PROCESS_ERROR_CODE = 582;
 
-        public static int BufferSize { get; set; } = 1024 * 8;
+        public int BufferSize { get; set; } = 1024 * 8;
 
-        public static int PoolMaxSize { get; set; } = 1024 * 10;
+        public int PoolMaxSize { get; set; } = 1024 * 10;
 
         static Gateway()
         {
@@ -52,8 +58,6 @@ namespace Bumblebee
 
         public Gateway()
         {
-            BufferPool.BUFFER_SIZE = BufferSize;
-            BufferPool.POOL_MAX_SIZE = PoolMaxSize;
             HttpServer = new HttpApiServer();
             Routes = new Routes.RouteCenter(this);
             Agents = new Servers.ServerCenter(this);
@@ -61,15 +65,20 @@ namespace Bumblebee
             this.Pluginer = new Pluginer(this, null);
             Statistics.Server = "Gateway";
             AgentMaxSocketError = 3;
-            MaxStatsUrls = 2000;
+            MaxStatsUrls = 20000;
             AgentMaxConnection = 200;
             AgentRequestQueueSize = 2000;
             ThreadQueues = (Environment.ProcessorCount / 2);
             if (ThreadQueues == 0)
                 ThreadQueues = 1;
-            GatewayQueueSize = Environment.ProcessorCount * 500;
+            GatewayQueueSize = Environment.ProcessorCount * 100;
             InstanceID = Guid.NewGuid().ToString("N");
+            GATEWAY_VERSION = $"BeetleX/Bumblebee[{GetType().Assembly.GetName().Version.ToString()}]";
         }
+
+        public const string GATEWAY_HEADER = "Gateway";
+
+        public static string GATEWAY_VERSION = "";
 
         public string InstanceID { get; internal set; }
 
@@ -86,6 +95,8 @@ namespace Bumblebee
         public int GatewayQueueSize { get; set; }
 
         public int MaxStatsUrls { get; set; }
+
+        public event System.EventHandler<Events.EventServerStatusChangeArgs> ServerStatusChanged;
 
         public PluginCenter PluginCenter { get; private set; }
 
@@ -184,9 +195,8 @@ namespace Bumblebee
                 var ip = e.Request.RemoteIPAddress;
                 if (HttpServer.EnableLog(LogType.Info))
                 {
-                    HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {e.Request.Method} {e.Request.Url} request from {ip}");
+                    HttpServer.Log(LogType.Info, $"Gateway {e.Request.ID} {ip} {e.Request.Method} {e.Request.Url}");
                 }
-                HttpServer.RequestExecting();
                 var result = this.Pluginer.Requesting(e.Request, e.Response);
                 if (result.Item1)
                 {
@@ -256,7 +266,6 @@ namespace Bumblebee
 
         public void Response(HttpResponse response, object result)
         {
-            HttpServer.RequestExecuted();
             response.Result(result);
         }
 
@@ -308,21 +317,9 @@ namespace Bumblebee
 
         public void IncrementRequestCompleted(HttpRequest request, int code, long time, Servers.ServerAgent server = null)
         {
-            HttpServer.RequestExecuted();
-            if ((code >= 200 && code < 400) || (code >= 500 && code < 600))
-            {
-                var stats = Routes.GetUrlStatistics(request.BaseUrl);
-                stats.Add(code, time, server);
-            }
-            else
-            {
-                if (Routes.UrlStatisticsCount < this.MaxStatsUrls && code != 404)
-                {
-                    var stats = Routes.GetUrlStatistics(request.BaseUrl);
-                    stats.Add(code, time, server);
-                }
-
-            }
+            HttpServer.IncrementResponsed(request, null, time, code, null);
+            var stats = Routes.GetUrlStatistics(request.GetSourceUrl(), request, code);
+            stats?.Add(code, time, server);
             Statistics.Add(code, time);
         }
 
@@ -333,10 +330,31 @@ namespace Bumblebee
                 Pluginer.Requested(success.GetEventRequestCompletedArgs());
         }
 
+        internal void OnServerChangeStatus(ServerAgent server, bool available)
+        {
+            if (ServerStatusChanged != null)
+            {
+                try
+                {
+                    Events.EventServerStatusChangeArgs e = new EventServerStatusChangeArgs();
+                    e.Server = server;
+                    e.Gateway = this;
+                    e.Available = available;
+                    ServerStatusChanged(this, e);
+                }
+                catch (Exception e_)
+                {
+                    if (HttpServer.EnableLog(LogType.Error))
+                    {
+                        HttpServer.Log(LogType.Error, $"Gateway server change status event error {e_.Message}@{e_.StackTrace} ");
+                    }
+                }
+            }
+        }
+
         public void Open()
         {
-            BufferPool.BUFFER_SIZE = BufferSize;
-            BufferPool.POOL_MAX_SIZE = PoolMaxSize;
+
             HttpServer[GATEWAY_TAG] = this;
             HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
             {
@@ -347,9 +365,11 @@ namespace Bumblebee
             mIOQueue = new BeetleX.Dispatchs.DispatchCenter<Tuple<UrlRouteAgent, HttpRequest, HttpResponse>>(OnRouteExecute,
               ThreadQueues);
             HttpServer.Options.UrlIgnoreCase = false;
+            HttpServer.Options.AgentRewrite = true;
             HttpServer.Open();
             HttpServer.HttpRequesting += OnRequest;
             LoadConfig();
+
             PluginCenter.Load(typeof(Gateway).Assembly);
             HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway server started [v:{this.GetType().Assembly.GetName().Version}]");
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);

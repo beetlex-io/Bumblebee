@@ -10,6 +10,9 @@ namespace Bumblebee
 
     public class Statistics
     {
+
+        const int COUNT = 701;
+
         public Statistics()
         {
             CodeStatistics = new CodeStatistics[701];
@@ -60,15 +63,41 @@ namespace Bumblebee
             {
                 OtherStatus.Add(time);
             }
-
-            if (code >= 1024)
+            if (code >= COUNT)
             {
-                CodeStatistics[1023].Add(time);
+                CodeStatistics[COUNT - 1].Add(time);
             }
             else
             {
                 CodeStatistics[code].Add(time);
             }
+        }
+
+        public StatisticsData ListStatisticsData(int code)
+        {
+            return CodeStatistics[code].GetData();
+        }
+
+        public StatisticsData[] ListStatisticsData(params int[] codes)
+        {
+            List<StatisticsData> result = new List<StatisticsData>();
+            foreach (var i in codes)
+            {
+                if (i < COUNT)
+                    result.Add(CodeStatistics[i].GetData());
+            }
+            return result.ToArray();
+        }
+
+        public StatisticsData[] ListStatisticsData(int start, int end)
+        {
+            List<StatisticsData> result = new List<StatisticsData>();
+            for (int i = start; i < end; i++)
+            {
+                if (i < COUNT)
+                    result.Add(CodeStatistics[i].GetData());
+            }
+            return result.ToArray();
         }
 
         public object ListStatisticsData(int start, int end, Func<StatisticsData, object> selectObj)
@@ -456,6 +485,8 @@ namespace Bumblebee
         {
             Statistics.Url = url;
         }
+
+        public string Path { get; set; }
 
         public Statistics Statistics { get; internal set; } = new Statistics();
 

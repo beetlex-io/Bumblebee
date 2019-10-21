@@ -113,6 +113,7 @@ namespace Bumblebee.Servers
                         {
                             Gateway.HttpServer.Log(LogType.Info, $"Gateway {Uri} server not available");
                         }
+                        Gateway.OnServerChangeStatus(this,false);
                     }
                     this.Available = false;
                 }
@@ -126,8 +127,10 @@ namespace Bumblebee.Servers
                     {
                         Gateway.HttpServer.Log(LogType.Info, $"Gateway {Uri} server available");
                     }
+                    Gateway.OnServerChangeStatus(this, true);
                 }
                 this.Available = true;
+                
             }
         }
 

@@ -162,6 +162,7 @@ namespace Bumblebee.Servers
                         {
                             agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
                         }
+                        mResponseHeader.Add(Gateway.GATEWAY_HEADER, Gateway.GATEWAY_VERSION);
                         UrlRoute.Pluginer.HeaderWriting(Request, Response, mResponseHeader);
                         mResponseHeader.Write(agentStream);
                         if (Server.Gateway.OutputServerAddress)
@@ -187,15 +188,15 @@ namespace Bumblebee.Servers
                         {
                             mRequestLength = int.Parse(header.Item2);
                         }
-                        if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
-                        {
+                        //if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
+                        //{
 
-                            mResponseHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
-                        }
-                        else
-                        {
-                            mResponseHeader.Add(header.Item1, header.Item2);
-                        }
+                        //    mResponseHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
+                        //}
+                        //else
+                        //{
+                        mResponseHeader.Add(header.Item1, header.Item2);
+                        //}
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
                 }
@@ -489,7 +490,7 @@ namespace Bumblebee.Servers
 
         public EventRequestCompletedArgs GetEventRequestCompletedArgs()
         {
-            if (eventRequestCompletedArgs == null)
+            if (eventRequestCompletedArgs.Gateway == null)
             {
                 eventRequestCompletedArgs = new EventRequestCompletedArgs(
                   this.UrlRoute,

@@ -67,7 +67,7 @@ namespace Bumblebee.Routes
 
         private UrlRouteAgent MatchAgent(HttpRequest request)
         {
-            string url = request.BaseUrl;
+            string url = request.GetSourceBaseUrl();
             UrlRouteAgent agent = new UrlRouteAgent();
             agent.Url = url;
             agent.Version = this.Version;
@@ -108,7 +108,7 @@ namespace Bumblebee.Routes
 
         public UrlRouteAgent GetAgent(HttpRequest request)
         {
-            ulong urlcode = GetUrlCode(string.Concat(request.Host, "|", request.BaseUrl));
+            ulong urlcode = GetUrlCode(string.Concat(request.Host, "|", request.GetSourceBaseUrl()));
             var item = urlRouteAgent.GetAgent(urlcode);
             if (item == null || item.Version != Version || item.Routes.Count != mMatchRoutes.Count)
             {
@@ -193,18 +193,23 @@ namespace Bumblebee.Routes
 
         public int UrlStatisticsCount => mUrlStatisticsCount;
 
-        public UrlStatistics GetUrlStatistics(string url)
+        public UrlStatistics GetUrlStatistics(string url, HttpRequest request, int code)
         {
             var id = GetUrlCode(url);
             var stats = urlStatisticsDictionary.GetStatistics(id);
             if (stats == null)
             {
+                if (code == 404)
+                    return null;
                 lock (urlStatisticsDictionary)
                 {
+                    if (mUrlStatisticsCount >= Gateway.MaxStatsUrls)
+                        return null;
                     stats = urlStatisticsDictionary.GetStatistics(id);
                     if (stats == null)
                     {
                         stats = new UrlStatistics(url);
+                        stats.Path = request.Path;
                         urlStatisticsDictionary.SetStatistics(id, stats);
                         System.Threading.Interlocked.Increment(ref mUrlStatisticsCount);
                     }
@@ -212,8 +217,6 @@ namespace Bumblebee.Routes
             }
             return stats;
         }
-
-
 
         public class UrlStatisticsDictionary
         {

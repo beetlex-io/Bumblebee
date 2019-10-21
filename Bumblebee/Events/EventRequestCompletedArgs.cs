@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Bumblebee.Events
 {
-    public class EventRequestCompletedArgs
+    public struct EventRequestCompletedArgs
     {
         public EventRequestCompletedArgs(Routes.UrlRoute urlRoute, HttpRequest request, HttpResponse response, Gateway gateway, int code,
             Servers.ServerAgent server, long useTime, long requestid, string error)
@@ -14,8 +14,8 @@ namespace Bumblebee.Events
             Error = error;
             RequestID = requestid;
             Gateway = gateway;
-            BaseUrl = request.BaseUrl;
-            Url = request.Url;
+            BaseUrl = request.GetSourceBaseUrl();
+            Url = request.GetSourceUrl();
             Code = code;
             Server = server;
             Time = useTime;
@@ -24,7 +24,7 @@ namespace Bumblebee.Events
             Headers = request.Header.Copy();
             RemoteIPAddress = request.RemoteIPAddress;
             Data = request.Data.Copy();
-            Path = request.Path;
+            Path = request.GetSourcePath();
             Method = request.Method;
 
         }
@@ -49,14 +49,14 @@ namespace Bumblebee.Events
 
         public long Time { get; set; }
 
-        public Servers.ServerAgent Server { get; private set; }
+        public Servers.ServerAgent Server { get; set; }
 
         public int Code { get; private set; }
 
-        public Routes.UrlRoute UrlRoute { get; internal set; }
+        public Routes.UrlRoute UrlRoute { get; set; }
 
-        public long RequestID { get; internal set; }
+        public long RequestID { get; set; }
 
-        public string Error { get; internal set; }
+        public string Error { get; set; }
     }
 }

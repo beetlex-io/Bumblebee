@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Bumblebee.Plugins
@@ -16,6 +17,8 @@ namespace Bumblebee.Plugins
         string IconUrl { get; }
 
         string EditorUrl { get; }
+
+        string InfoUrl { get; }
     }
 
     public enum PluginLevel : int
@@ -41,8 +44,6 @@ namespace Bumblebee.Plugins
         Low9 = 1,
 
     }
-
-
 
 
     public interface IPlugin
@@ -74,9 +75,6 @@ namespace Bumblebee.Plugins
     }
 
 
-
-
-
     public class PluginInfo
     {
 
@@ -97,6 +95,11 @@ namespace Bumblebee.Plugins
             if (plugin is IRespondingHandler)
                 Type = PluginType.Responding.ToString();
             Name = plugin.Name;
+            var copyright = (from a in plugin.GetType().Assembly.CustomAttributes
+                             where a.AttributeType == typeof(System.Reflection.AssemblyCopyrightAttribute)
+                             select a).FirstOrDefault();
+            if (copyright != null)
+                Copyright = (string)copyright.ConstructorArguments[0].Value;
             Version = plugin.GetType().Assembly.GetName().Version.ToString();
             Assembly = plugin.GetType().Assembly.GetName().Name;
             Description = plugin.Description;
@@ -114,12 +117,17 @@ namespace Bumblebee.Plugins
             {
                 EditorUrl = info.EditorUrl;
                 IconUrl = info.IconUrl;
+                InfoUrl = info.InfoUrl;
             }
         }
+
+        public string Copyright { get; set; }
 
         public string Level { get; set; }
 
         public string EditorUrl { get; set; }
+
+        public string InfoUrl { get; set; }
 
         public string IconUrl { get; set; }
 
