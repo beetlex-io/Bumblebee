@@ -87,7 +87,7 @@ BeetleX.Bumblebee.Configuration
 ![image](https://user-images.githubusercontent.com/2564178/65938394-6e932180-e455-11e9-947e-db0a5cfcb708.png)
 ### 日志查看
 这个主要是查看网关处理的日志，请求转发日志由于量比较大这个管理插件暂没有实现接管，使用者可以写插件来记录相关API转发的详细日志。
-![image](https://user-images.githubusercontent.com/2564178/65813304-2631f480-e206-11e9-8a06-a799edcba51c.png)
+![image](https://user-images.githubusercontent.com/2564178/67294466-71df7180-f518-11e9-9da8-a57f07ebcfc7.png)
 ## 性能测试对比(Bumblebee vs Ocelot)
 **测试服务配置** E3 1230v2 16G windows 2008  Network:10Gb
 
