@@ -19,6 +19,7 @@ https://github.com/IKende/Bumblebee/wiki
 |[BeetleX.Bumblebee.ConcurrentLimits](https://www.nuget.org/packages/BeetleX.Bumblebee.ConcurrentLimits/)|并发控制插件，可以对请求的IP和相关URL配置并发限制，控制服务平稳运行|
 |[BeetleX.Bumblebee.Caching](https://www.nuget.org/packages/BeetleX.Bumblebee.Caching/)|网关缓存插件|
 |[BeetleX.Bumblebee.UrlRewrite](https://www.nuget.org/packages/BeetleX.Bumblebee.UrlRewrite/)|Url重写插件|
+|[BeetleX.Bumblebee.Consul](https://www.nuget.org/packages/BeetleX.Bumblebee.Consul/)|Consul服务发现插件|
 
 **[相关使用文档](https://github.com/IKende/Bumblebee/wiki)**
 ## 下载运行版(linux/windows .net core 2.1或更高版本)
