@@ -10,6 +10,8 @@ Bumblebee是一款基于`http`协议实现的服务网关，它可以应用到�
 - 支持`windows`,`linux`等多平台
 ## 详细使用文档
 https://github.com/IKende/Bumblebee/wiki
+## 在线演示
+http://ikende.com/__system/bumblebee/
 ## 可用插件
 |名称|功能描述|
 |----|-------|
