@@ -10,6 +10,8 @@ using BeetleX.Buffers;
 using Bumblebee.Servers;
 using BeetleX.EventArgs;
 using Bumblebee.Routes;
+using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Bumblebee
 {
@@ -46,7 +48,7 @@ namespace Bumblebee
 
         public const int SERVER_PROCESS_ERROR_CODE = 582;
 
-        public int BufferSize { get; set; } = 1024 * 8;
+        public int BufferSize { get; set; } = 1024 * 4;
 
         public int PoolMaxSize { get; set; } = 1024 * 10;
 
@@ -85,6 +87,8 @@ namespace Bumblebee
         public int ThreadQueues { get; set; }
 
         public bool OutputServerAddress { get; set; } = false;
+
+        public bool StatisticsEnabled { get; set; } = true;
 
         public int AgentMaxConnection { get; set; }
 
@@ -230,6 +234,7 @@ namespace Bumblebee
                             else
                             {
                                 AddRequest(new Tuple<UrlRouteAgent, HttpRequest, HttpResponse>(item, e.Request, e.Response));
+                                //item.Execute(e.Request, e.Response);
                             }
                         }
                         else
@@ -264,6 +269,30 @@ namespace Bumblebee
 
         }
 
+
+        private void OnRouteExecute(Tuple<UrlRouteAgent, HttpRequest, HttpResponse> e)
+        {
+            try
+            {
+                //if (!requestAgent.Request.Session.IsDisposed)
+                //    requestAgent.Execute();
+                //else
+                //{
+                //    requestAgent.Cancel();
+                //}
+                if (!e.Item2.Session.IsDisposed)
+                    e.Item1.Execute(e.Item2, e.Item3);
+            }
+            catch (Exception e_)
+            {
+                if (HttpServer.EnableLog(LogType.Error))
+                {
+                    HttpServer.Log(LogType.Error,
+                        $"Gateway {e.Item2.RemoteIPAddress} {e.Item2.Method} {e.Item2.Url} route executing error {e_.Message}{e_.StackTrace}");
+                }
+            }
+        }
+
         public void Response(HttpResponse response, object result)
         {
             response.Result(result);
@@ -290,12 +319,19 @@ namespace Bumblebee
                            );
                 Pluginer.Requested(se);
             }
-            IncrementRequestCompleted(e.Request, e.ErrorCode, 1, null);
+            RequestIncrementCompleted(e.Request, e.ErrorCode, 1, null);
             this.Pluginer.ResponseError(e);
             if (e.Result != null)
             {
                 e.Response.Result(e.Result);
             }
+        }
+
+        internal void OnRequestCompleted(Servers.RequestAgent success)
+        {
+            RequestIncrementCompleted(success.Request, success.Code, success.Time, success.Server);
+            if (Pluginer.RequestedEnabled)
+                Pluginer.Requested(success.GetEventRequestCompletedArgs());
         }
 
         internal void OnResponding(RequestAgent request, ArraySegment<byte> data, bool completed)
@@ -315,20 +351,29 @@ namespace Bumblebee
             }
         }
 
-        public void IncrementRequestCompleted(HttpRequest request, int code, long time, Servers.ServerAgent server = null)
+        public void RequestIncrementCompleted(HttpRequest request, int code, long time, Servers.ServerAgent server = null)
         {
             HttpServer.IncrementResponsed(request, null, time, code, null);
-            var stats = Routes.GetUrlStatistics(request.GetSourceUrl(), request, code);
-            stats?.Add(code, time, server);
-            Statistics.Add(code, time);
+            if (StatisticsEnabled)
+            {
+                Statistics.Add(code, time);
+                if (Statistical(request))
+                    Routes.UrlStatisticsDB.Add(code, time, server, request);
+            }
+            try
+            {
+                RequestIncrement.Invoke(this, new EventRequestIncrementArgs(request, code, time, server));
+            }
+            catch (Exception e_)
+            {
+                if (HttpServer.EnableLog(LogType.Error))
+                {
+                    HttpServer.Log(LogType.Error, $"Gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.Url} request increment event error {e_.Message}@{e_.StackTrace}");
+                }
+            }
         }
 
-        internal void OnRequestCompleted(Servers.RequestAgent success)
-        {
-            IncrementRequestCompleted(success.Request, success.Code, success.Time, success.Server);
-            if (Pluginer.RequestedEnabled)
-                Pluginer.Requested(success.GetEventRequestCompletedArgs());
-        }
+        public event EventHandler<Events.EventRequestIncrementArgs> RequestIncrement;
 
         internal void OnServerChangeStatus(ServerAgent server, bool available)
         {
@@ -441,28 +486,37 @@ namespace Bumblebee
             mIOQueue.Enqueue(e, 3);
         }
 
-        private void OnRouteExecute(Tuple<UrlRouteAgent, HttpRequest, HttpResponse> e)
+        private Dictionary<string, string> mStatsExts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public bool Statistical(HttpRequest request)
         {
-            try
+            if (mStatsExts.Count == 0 || string.IsNullOrEmpty(request.Ext))
             {
-                //if (!requestAgent.Request.Session.IsDisposed)
-                //    requestAgent.Execute();
-                //else
-                //{
-                //    requestAgent.Cancel();
-                //}
-                if (!e.Item2.Session.IsDisposed)
-                    e.Item1.Execute(e.Item2, e.Item3);
+                return true;
             }
-            catch (Exception e_)
+            return mStatsExts.ContainsKey(request.Ext);
+        }
+
+        public void SetStatisticsExts(string exts)
+        {
+            if (!string.IsNullOrEmpty(exts))
             {
-                if (HttpServer.EnableLog(LogType.Error))
+                Dictionary<string, string> statsExts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in exts.Split(';'))
                 {
-                    HttpServer.Log(LogType.Error,
-                        $"Gateway {e.Item2.RemoteIPAddress} {e.Item2.Method} {e.Item2.Url} route executing error {e_.Message}{e_.StackTrace}");
+                    statsExts[item] = item;
                 }
+                mStatsExts = statsExts;
             }
         }
+
+        public string GetStatisticsExts()
+        {
+            if (mStatsExts?.Count == 0)
+                return "";
+            return string.Join(";", mStatsExts.Values.ToArray());
+        }
+
 
     }
 }

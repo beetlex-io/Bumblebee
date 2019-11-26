@@ -13,26 +13,26 @@ namespace Bumblebee.Routes
         {
             Gateway = gateway;
             Default = new UrlRoute(gateway, "*");
+            mUrlStatisticsDB = new UrlStatisticsMemoryDB(gateway);
         }
 
         private long mVersion;
 
         private List<UrlRoute> mMatchRoutes = new List<UrlRoute>();
 
-        private ConcurrentDictionary<string, UrlRoute> mUrlRoutes = new ConcurrentDictionary<string, UrlRoute>();
+        private ConcurrentDictionary<string, UrlRoute> mUrlRoutes = new ConcurrentDictionary<string, UrlRoute>(StringComparer.OrdinalIgnoreCase);
 
         private UrlRouteAgentDictionary urlRouteAgent = new UrlRouteAgentDictionary();
 
-        private UrlStatisticsDictionary urlStatisticsDictionary = new UrlStatisticsDictionary();
-
-        private UrlStatisticsDictionary urlServerStatisticsDictionary = new UrlStatisticsDictionary();
+        private UrlStatisticsMemoryDB mUrlStatisticsDB;
 
         private void OnUpdateUrlTable()
         {
             List<UrlRoute> urls = new List<UrlRoute>();
             urls.AddRange(mUrlRoutes.Values);
-            urls.Sort((x, y) => y.UrlPattern.Length.CompareTo(x.UrlPattern.Length));
-            mMatchRoutes = urls;
+            mMatchRoutes = (from a in urls
+                            orderby a.Host?.Length descending, a.UrlPattern.Length descending
+                            select a).ToList();
             Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway update route url data table");
         }
 
@@ -87,7 +87,7 @@ namespace Bumblebee.Routes
                     }
                     else
                     {
-                        if (string.Compare(routeItem.Host, request.Host, true) == 0)
+                        if (!string.IsNullOrEmpty(request.Host) && request.Host.IndexOf(routeItem.Host, StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             agent.UrlRoute = routeItem;
                             return agent;
@@ -108,13 +108,13 @@ namespace Bumblebee.Routes
 
         public UrlRouteAgent GetAgent(HttpRequest request)
         {
-            ulong urlcode = GetUrlCode(string.Concat(request.Host, "|", request.GetSourceBaseUrl()));
-            var item = urlRouteAgent.GetAgent(urlcode);
+            // ulong urlcode = GetUrlCode(string.Concat(request.Host, "|", request.GetSourceBaseUrl()));
+            string url = string.Concat(request.Host, "|", request.GetSourceBaseUrl());
+            var item = urlRouteAgent.GetAgent(url);
             if (item == null || item.Version != Version || item.Routes.Count != mMatchRoutes.Count)
             {
-
                 item = MatchAgent(request);
-                urlRouteAgent.SetAgent(urlcode, item);
+                urlRouteAgent.SetAgent(url, item);
 
             }
             return item;
@@ -183,73 +183,77 @@ namespace Bumblebee.Routes
         }
 
 
-        public UrlStatistics[] GetUrlStatisticsData()
+        public UrlStatisticsMemoryDB UrlStatisticsDB => mUrlStatisticsDB;
+
+        public class UrlStatisticsMemoryDB
         {
-            return (from a in urlStatisticsDictionary.GetStatistics()
-                    select a).ToArray();
-        }
+            private ConcurrentDictionary<string, UrlStatistics> mStats = new ConcurrentDictionary<string, UrlStatistics>(StringComparer.OrdinalIgnoreCase);
 
-        private int mUrlStatisticsCount;
+            private ConcurrentDictionary<string, string> mPaths = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        public int UrlStatisticsCount => mUrlStatisticsCount;
+            private Gateway mGateway;
 
-        public UrlStatistics GetUrlStatistics(string url, HttpRequest request, int code)
-        {
-            var id = GetUrlCode(url);
-            var stats = urlStatisticsDictionary.GetStatistics(id);
-            if (stats == null)
+            private long mVersion;
+
+            private long mCacheVersion;
+
+            private UrlStatistics[] mCacheStats = new UrlStatistics[0];
+
+            public UrlStatisticsMemoryDB(Gateway gateway)
             {
-                if (code == 404)
-                    return null;
-                lock (urlStatisticsDictionary)
+                mGateway = gateway;
+            }
+
+
+            public void Add(int code, long time, Servers.ServerAgent server, BeetleX.FastHttpApi.HttpRequest request)
+            {
+                var stats = GetStatistics(request, code);
+                stats?.Add(code, time, server, request);
+            }
+
+            private UrlStatistics GetStatistics(HttpRequest request, int code)
+            {
+                string url = request.GetSourceBaseUrl();
+                if (!mStats.TryGetValue(url, out UrlStatistics result))
                 {
-                    if (mUrlStatisticsCount >= Gateway.MaxStatsUrls)
+                    if (mStats.Count >= mGateway.MaxStatsUrls)
                         return null;
-                    stats = urlStatisticsDictionary.GetStatistics(id);
-                    if (stats == null)
+                    if (code >= 400)
+                        return null;
+                    result = new UrlStatistics(request.GetSourceBaseUrl());
+                    result.Path = request.GetSourcePath();
+                    result.Ext = request.Ext;
+                    if (mStats.TryAdd(url, result))
                     {
-                        stats = new UrlStatistics(url);
-                        stats.Path = request.Path;
-                        urlStatisticsDictionary.SetStatistics(id, stats);
-                        System.Threading.Interlocked.Increment(ref mUrlStatisticsCount);
+                        mPaths[url] = url;
+                        System.Threading.Interlocked.Increment(ref mVersion);
+                    }
+                    else
+                    {
+                        mStats.TryGetValue(url, out result);
                     }
                 }
+                return result;
             }
-            return stats;
-        }
 
-        public class UrlStatisticsDictionary
-        {
-            private List<ConcurrentDictionary<ulong, UrlStatistics>> mDictionarys = new List<ConcurrentDictionary<ulong, UrlStatistics>>();
-
-            public UrlStatisticsDictionary()
+            public string[] GetPaths()
             {
-                for (int i = 0; i < Math.Min(Environment.ProcessorCount, 16); i++)
+                return mPaths.Values.ToArray();
+            }
+
+            public UrlStatistics[] GetStatistics(string path)
+            {
+                return (from a in GetStatistics() where a.Path == path select a).ToArray();
+            }
+
+            public UrlStatistics[] GetStatistics()
+            {
+                if (mCacheVersion != mVersion)
                 {
-                    mDictionarys.Add(new ConcurrentDictionary<ulong, UrlStatistics>());
+                    mCacheStats = mStats.Values.ToArray();
+                    mCacheVersion = mVersion;
                 }
-            }
-
-            public void SetStatistics(ulong url, UrlStatistics agent)
-            {
-                ConcurrentDictionary<ulong, UrlStatistics> keyValuePairs = mDictionarys[(int)(url % (uint)mDictionarys.Count)];
-                keyValuePairs[url] = agent;
-            }
-
-            public UrlStatistics GetStatistics(ulong url)
-            {
-                ConcurrentDictionary<ulong, UrlStatistics> keyValuePairs = mDictionarys[(int)(url % (uint)mDictionarys.Count)];
-                keyValuePairs.TryGetValue(url, out UrlStatistics result);
-                return result;
-            }
-
-            public List<UrlStatistics> GetStatistics()
-            {
-                List<UrlStatistics> result = new List<UrlStatistics>();
-                foreach (var item in mDictionarys)
-                    foreach (var data in item.Values)
-                        result.Add(data);
-                return result;
+                return mCacheStats;
             }
         }
 
@@ -257,26 +261,31 @@ namespace Bumblebee.Routes
 
         public class UrlRouteAgentDictionary
         {
-            private List<ConcurrentDictionary<ulong, UrlRouteAgent>> mDictionarys = new List<ConcurrentDictionary<ulong, UrlRouteAgent>>();
+            private List<ConcurrentDictionary<string, UrlRouteAgent>> mDictionarys = new List<ConcurrentDictionary<string, UrlRouteAgent>>();
 
             public UrlRouteAgentDictionary()
             {
                 for (int i = 0; i < Math.Min(Environment.ProcessorCount, 16); i++)
                 {
-                    mDictionarys.Add(new ConcurrentDictionary<ulong, UrlRouteAgent>());
+                    mDictionarys.Add(new ConcurrentDictionary<string, UrlRouteAgent>(StringComparer.OrdinalIgnoreCase));
                 }
             }
 
-            public void SetAgent(ulong url, UrlRouteAgent agent)
+            private int GetUrlIndex(string url)
             {
-                ConcurrentDictionary<ulong, UrlRouteAgent> keyValuePairs = mDictionarys[(int)(url % (uint)mDictionarys.Count)];
+                return Math.Abs(url.GetHashCode());
+            }
+
+            public void SetAgent(string url, UrlRouteAgent agent)
+            {
+                ConcurrentDictionary<string, UrlRouteAgent> keyValuePairs = mDictionarys[(int)(GetUrlIndex(url) % (uint)mDictionarys.Count)];
                 keyValuePairs[url] = agent;
 
             }
 
-            public UrlRouteAgent GetAgent(ulong url)
+            public UrlRouteAgent GetAgent(string url)
             {
-                ConcurrentDictionary<ulong, UrlRouteAgent> keyValuePairs = mDictionarys[(int)(url % (uint)mDictionarys.Count)];
+                ConcurrentDictionary<string, UrlRouteAgent> keyValuePairs = mDictionarys[(int)(GetUrlIndex(url) % (uint)mDictionarys.Count)];
                 keyValuePairs.TryGetValue(url, out UrlRouteAgent result);
                 return result;
             }

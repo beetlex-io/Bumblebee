@@ -188,7 +188,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} agent requesting handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} agent requesting handler error {e_.Message} {e_.StackTrace}");
                     }
 
                 }
@@ -223,7 +223,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} header writing handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} header writing handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -244,7 +244,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} response error handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} response error handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -278,7 +278,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} requesting handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} requesting handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -311,7 +311,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} responding handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} responding handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -345,7 +345,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} requested handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} requested handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
 
@@ -389,7 +389,7 @@ namespace Bumblebee.Plugins
                         var handler = (IGatewayLoader)Activator.CreateInstance(t);
                         handler.Init(Gateway, assembly);
                         LoaderHandlers.Add(handler);
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.GetType()}[{assembly.GetName().Version}] gateway loader handler success");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway load {t.Name}[{assembly.GetName().Version}] gateway loader handler success");
                         mPlugins[handler.Name] = handler;
                         InitPluginEnabled(handler);
                         LoadSetting(handler);
@@ -397,7 +397,7 @@ namespace Bumblebee.Plugins
                     }
                     catch (Exception e_)
                     {
-                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.GetType()} gateway loader handler error {e_.Message} {e_.StackTrace}");
+                        Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway load {t.Name} gateway loader handler error {e_.Message} {e_.StackTrace}");
                     }
                 }
             }

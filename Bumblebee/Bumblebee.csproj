@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <Version>1.1.7</Version>
+    <Version>1.2.2.0</Version>
     <Authors>henryfan</Authors>
     <Company>ikende.com</Company>
     <Copyright>Copyright © ikende.com 2019 email:henryfan@msn.com</Copyright>
@@ -11,9 +11,10 @@
     <PackageLicenseUrl>https://github.com/IKende/Bumblebee/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/IKende/Bumblebee</PackageProjectUrl>
     <PackageId>BeetleX.Bumblebee</PackageId>
-    <AssemblyVersion>1.1.7.0</AssemblyVersion>
-    <SignAssembly>false</SignAssembly>
+    <AssemblyVersion>1.2.2.0</AssemblyVersion>
+    <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>Bumblebbe.pfx</AssemblyOriginatorKeyFile>
+    <FileVersion>1.2.2.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BeetleX.FastHttpApi" Version="1.6.9" />
+    <PackageReference Include="BeetleX.FastHttpApi" Version="1.7.3.6" />
   </ItemGroup>
 
 </Project>

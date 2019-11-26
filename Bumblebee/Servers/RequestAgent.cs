@@ -42,8 +42,6 @@ namespace Bumblebee.Servers
 
         //public static ConcurrentDictionary<long, RequestAgent> mHistoryRequests = new ConcurrentDictionary<long, RequestAgent>();
 
-
-
         private Header mResponseHeader = new Header();
 
         public Header ResponseHeader => mResponseHeader;
@@ -59,6 +57,9 @@ namespace Bumblebee.Servers
         public string ResponseStatus { get; private set; }
 
         private byte[] mBuffer;
+
+
+        private Queue<byte> mEofBuffer;
 
         private TcpClientAgent mClientAgent;
 
@@ -183,20 +184,13 @@ namespace Bumblebee.Servers
                         if (string.Compare(header.Item1, HeaderTypeFactory.TRANSFER_ENCODING, true) == 0 && string.Compare(header.Item2, "chunked", true) == 0)
                         {
                             mTransferEncoding = true;
+                            mEofBuffer = new Queue<byte>(5);
                         }
                         if (string.Compare(header.Item1, HeaderTypeFactory.CONTENT_LENGTH, true) == 0)
                         {
                             mRequestLength = int.Parse(header.Item2);
                         }
-                        //if (string.Compare(header.Item1, HeaderTypeFactory.SERVER, true) == 0)
-                        //{
-
-                        //    mResponseHeader.Add(HeaderTypeFactory.SERVER, "Bumblebee(BeetleX)");
-                        //}
-                        //else
-                        //{
                         mResponseHeader.Add(header.Item1, header.Item2);
-                        //}
                     }
                     indexof = pipeStream.IndexOf(HeaderTypeFactory.LINE_BYTES);
                 }
@@ -205,7 +199,6 @@ namespace Bumblebee.Servers
 
         private void OnReadResponseBody(PipeStream pipeStream)
         {
-
             PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingBody)
             {
@@ -221,10 +214,29 @@ namespace Bumblebee.Servers
                             Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
                         }
                         agentStream.Write(mBuffer, 0, len);
+                        if (len > 5)
+                        {
+                            for (int i = len - 5; i < len; i++)
+                            {
+                                if (mEofBuffer.Count >= 5)
+                                    mEofBuffer.Dequeue();
+                                mEofBuffer.Enqueue(mBuffer[i]);
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < len; i++)
+                            {
+                                if (mEofBuffer.Count >= 5)
+                                    mEofBuffer.Dequeue();
+                                mEofBuffer.Enqueue(mBuffer[i]);
+                            }
+                        }
+                        var eofdata = mEofBuffer.ToArray();
                         bool end = true;
                         for (int i = 0; i < 5; i++)
                         {
-                            if (HeaderTypeFactory.CHUNKED_BYTES[i] != mBuffer[len - 5 + i])
+                            if (HeaderTypeFactory.CHUNKED_BYTES[i] != eofdata[i])
                             {
                                 end = false;
                                 break;
@@ -240,9 +252,6 @@ namespace Bumblebee.Servers
                         else
                         {
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
-                            if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
-                                Request.Session.Stream.Flush();
-
                         }
                     }
                 }
@@ -270,6 +279,7 @@ namespace Bumblebee.Servers
                         }
                         if (mRequestLength == 0)
                         {
+                           
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), true);
                             OnCompleted(null);
                             Request.Session.Stream.Flush();
@@ -278,8 +288,6 @@ namespace Bumblebee.Servers
                         else
                         {
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
-                            if (Request.KeepAlive && agentStream.CacheLength > 1024 * 2)
-                                Request.Session.Stream.Flush();
                         }
                     }
                 }

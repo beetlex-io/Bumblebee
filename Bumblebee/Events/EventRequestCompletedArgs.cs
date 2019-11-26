@@ -14,8 +14,13 @@ namespace Bumblebee.Events
             Error = error;
             RequestID = requestid;
             Gateway = gateway;
-            BaseUrl = request.GetSourceBaseUrl();
-            Url = request.GetSourceUrl();
+            UrlRewrite = request.IsRewrite;
+            SourceBaseUrl = request.GetSourceBaseUrl();
+            SourceUrl = request.GetSourceUrl();
+            SourcePath = request.GetSourcePath();
+            Url = request.Url;
+            BaseUrl = request.BaseUrl;
+            Path = request.Path;
             Code = code;
             Server = server;
             Time = useTime;
@@ -24,12 +29,18 @@ namespace Bumblebee.Events
             Headers = request.Header.Copy();
             RemoteIPAddress = request.RemoteIPAddress;
             Data = request.Data.Copy();
-            Path = request.GetSourcePath();
             Method = request.Method;
+            Host = request.GetHostBase();
 
         }
 
+        public string Host { get; set; }
+
         public string Path { get; set; }
+
+        public string Url { get; set; }
+
+        public string BaseUrl { get; set; }
 
         public Gateway Gateway { get; set; }
 
@@ -43,9 +54,13 @@ namespace Bumblebee.Events
 
         public string Method { get; set; }
 
-        public string Url { get; set; }
+        public string SourcePath { get; set; }
 
-        public string BaseUrl { get; set; }
+        public string SourceUrl { get; set; }
+
+        public string SourceBaseUrl { get; set; }
+
+        public bool UrlRewrite { get; set; }
 
         public long Time { get; set; }
 

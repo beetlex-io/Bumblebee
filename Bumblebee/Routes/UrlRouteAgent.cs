@@ -20,6 +20,10 @@ namespace Bumblebee.Routes
         public void Execute(HttpRequest request, HttpResponse response)
         {
 
+            if (request.Server.EnableLog(LogType.Debug))
+            {
+                request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s get urlroute agent!");
+            }
             var agent = UrlRoute.GetServerAgent(request);
             if (agent == null)
             {
@@ -34,12 +38,19 @@ namespace Bumblebee.Routes
             }
             else
             {
-
+                if (request.Server.EnableLog(LogType.Debug))
+                {
+                    request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s AgentRequesting event!");
+                }
                 if (UrlRoute.Pluginer.AgentRequesting(request, response, agent.Agent, UrlRoute))
                 {
                     agent.Increment();
                     if (agent.ValidateRPS())
                     {
+                        if (request.Server.EnableLog(LogType.Debug))
+                        {
+                            request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s agent execute!");
+                        }
                         agent.Agent.Execute(request, response, agent, UrlRoute);
                     }
                     else

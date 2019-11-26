@@ -12,12 +12,12 @@ namespace Bumblebee.Servers
         public ServerCenter(Gateway gateway)
         {
             Gateway = gateway;
-            mAgents = new ConcurrentDictionary<string, ServerAgent>();
+            mAgents = new ConcurrentDictionary<string, ServerAgent>(StringComparer.OrdinalIgnoreCase);
         }
 
-        public List<StatisticsGroup> GetServerStatistics()
+        public List<StatisticsData> GetServerStatistics()
         {
-            List<StatisticsGroup> result = new List<StatisticsGroup>();
+            List<StatisticsData> result = new List<StatisticsData>();
             foreach (var item in mAgents.Values)
             {
                 result.Add(item.Statistics.GetData());

@@ -11,24 +11,52 @@ namespace Bumblebee
     public class Statistics
     {
 
-        const int COUNT = 701;
-
         public Statistics()
         {
-            CodeStatistics = new CodeStatistics[701];
-            for (int i = 0; i < 701; i++)
-            {
-                CodeStatistics[i] = new CodeStatistics(i);
-            }
-
             All = new Bumblebee.CodeStatistics(0, "All");
             Server = "NULL";
             Url = "NULL";
+            Times.Add(new TimeStatistics(0, 10));
+            Times.Add(new TimeStatistics(10, 50));
+            Times.Add(new TimeStatistics(50, 100));
+            Times.Add(new TimeStatistics(100, 500));
+            Times.Add(new TimeStatistics(500, 1000));
+            Times.Add(new TimeStatistics(1000, 5000));
+            Times.Add(new TimeStatistics(5000, 0));
+            mData = new StatisticsData(this);
+        }
+
+
+
+
+        private StatisticsData mData;
+
+        private ConcurrentDictionary<int, CodeStatistics> mSubStats = new ConcurrentDictionary<int, CodeStatistics>();
+
+        private CodeStatistics[] mCache = new CodeStatistics[0];
+
+        private CodeStatistics GetSubstats(int code)
+        {
+            if (!mSubStats.TryGetValue(code, out CodeStatistics result))
+            {
+                result = new CodeStatistics(code);
+                if (mSubStats.TryAdd(code, result))
+                {
+                    mCache = mSubStats.Values.ToArray();
+                }
+                else
+                {
+                    mSubStats.TryGetValue(code, out result);
+                }
+            }
+            return result;
         }
 
         public string Server { get; set; }
 
         public string Url { get; set; }
+
+        public List<TimeStatistics> Times { get; private set; } = new List<TimeStatistics>();
 
         public CodeStatistics OtherStatus { get; private set; } = new CodeStatistics(0, "Other");
 
@@ -43,8 +71,6 @@ namespace Bumblebee
         public CodeStatistics Status_5xx { get; private set; } = new CodeStatistics(0, "5xx");
 
         public CodeStatistics All { get; private set; }
-
-        public CodeStatistics[] CodeStatistics { get; private set; }
 
         public void Add(int code, long time)
         {
@@ -63,46 +89,55 @@ namespace Bumblebee
             {
                 OtherStatus.Add(time);
             }
-            if (code >= COUNT)
+            if (code >= 700)
             {
-                CodeStatistics[COUNT - 1].Add(time);
+                GetSubstats(700).Add(time);
+
             }
             else
             {
-                CodeStatistics[code].Add(time);
+                GetSubstats(code).Add(time);
+            }
+            for (int i = 0; i < Times.Count; i++)
+            {
+                var t = Times[i];
+                if (t.Match((int)time))
+                    t.Add();
             }
         }
 
-        public StatisticsData ListStatisticsData(int code)
+        public CodeStatisticsData ListStatisticsData(int code)
         {
-            return CodeStatistics[code].GetData();
+            return GetSubstats(code).GetData();
         }
 
-        public StatisticsData[] ListStatisticsData(params int[] codes)
+        public CodeStatisticsData[] ListStatisticsData(params int[] codes)
         {
-            List<StatisticsData> result = new List<StatisticsData>();
+            List<CodeStatisticsData> result = new List<CodeStatisticsData>();
             foreach (var i in codes)
             {
-                if (i < COUNT)
-                    result.Add(CodeStatistics[i].GetData());
+                if (mSubStats.TryGetValue(i, out CodeStatistics item))
+                {
+                    result.Add(item.GetData());
+                }
             }
             return result.ToArray();
         }
 
-        public StatisticsData[] ListStatisticsData(int start, int end)
+        public CodeStatisticsData[] ListStatisticsData(int start, int end)
         {
-            List<StatisticsData> result = new List<StatisticsData>();
-            for (int i = start; i < end; i++)
+            List<CodeStatisticsData> result = new List<CodeStatisticsData>();
+            foreach (var item in mCache)
             {
-                if (i < COUNT)
-                    result.Add(CodeStatistics[i].GetData());
+                if (item.Code >= start && item.Code < end)
+                    result.Add(item.GetData());
             }
             return result.ToArray();
         }
 
-        public object ListStatisticsData(int start, int end, Func<StatisticsData, object> selectObj)
+        public object ListStatisticsData(int start, int end, Func<CodeStatisticsData, object> selectObj)
         {
-            var result = (from item in this.CodeStatistics
+            var result = (from item in mCache
                           where item.Count > 0 && item.Code >= start && item.Code < end
                           select selectObj(item.GetData())).ToArray();
             return result;
@@ -111,14 +146,14 @@ namespace Bumblebee
         public CodeStatistics[] List(Func<CodeStatistics, bool> filters = null)
         {
             if (filters == null)
-                return (from a in this.CodeStatistics where a.Count > 0 orderby a.Count descending select a).ToArray();
+                return (from a in this.mCache where a.Count > 0 orderby a.Count descending select a).ToArray();
             else
-                return (from a in this.CodeStatistics where a.Count > 0 && filters(a) orderby a.Count descending select a).ToArray();
+                return (from a in this.mCache where a.Count > 0 && filters(a) orderby a.Count descending select a).ToArray();
         }
 
-        public StatisticsGroup GetData()
+        public StatisticsData GetData()
         {
-            StatisticsGroup result = new StatisticsGroup(this);
+            StatisticsData result = mData;
             result.Server = Server;
             result.Url = Url;
             result.Other = OtherStatus.GetData();
@@ -128,6 +163,8 @@ namespace Bumblebee
             result._4xx = Status_4xx.GetData();
             result._5xx = Status_5xx.GetData();
             result.All = All.GetData();
+            for (int i = 0; i < Times.Count; i++)
+                result.Times[i] = Times[i].GetData();
             return result;
         }
     }
@@ -141,6 +178,7 @@ namespace Bumblebee
                 name = code.ToString();
             mLastTime = BeetleX.TimeWatch.GetTotalSeconds();
             Name = name;
+            mStatisticsData = new CodeStatisticsData();
         }
 
         public int Code { get; private set; }
@@ -155,43 +193,9 @@ namespace Bumblebee
 
         private long mLastCount;
 
-        public int Rps
-        {
-            get
-            {
-                double time = TimeWatch.GetTotalSeconds() - mLastTime;
-                int value = (int)((double)(mCount - mLastCount) / time);
-                mLastTime = TimeWatch.GetTotalSeconds();
-                mLastCount = mCount;
-                return value;
-            }
-        }
-
         public void Add(long time)
         {
             System.Threading.Interlocked.Increment(ref mCount);
-            if (time <= 10)
-                System.Threading.Interlocked.Increment(ref ms10);
-            else if (time <= 20)
-                System.Threading.Interlocked.Increment(ref ms20);
-            else if (time <= 50)
-                System.Threading.Interlocked.Increment(ref ms50);
-            else if (time <= 100)
-                System.Threading.Interlocked.Increment(ref ms100);
-            else if (time <= 200)
-                System.Threading.Interlocked.Increment(ref ms200);
-            else if (time <= 500)
-                System.Threading.Interlocked.Increment(ref ms500);
-            else if (time <= 1000)
-                System.Threading.Interlocked.Increment(ref ms1000);
-            else if (time <= 2000)
-                System.Threading.Interlocked.Increment(ref ms2000);
-            else if (time <= 5000)
-                System.Threading.Interlocked.Increment(ref ms5000);
-            else if (time <= 10000)
-                System.Threading.Interlocked.Increment(ref ms10000);
-            else
-                System.Threading.Interlocked.Increment(ref msOther);
         }
 
         public override string ToString()
@@ -199,284 +203,184 @@ namespace Bumblebee
             return mCount.ToString();
         }
 
-        private long ms10;
-
-        private long ms10LastCount;
-
-        public long Time10ms => ms10;
-
-        private long ms20;
-
-        private long ms20LastCount;
-
-        public long Time20ms => ms20;
-
-        private long ms50;
-
-        private long ms50LastCount;
-
-        public long Time50ms => ms50;
-
-        private long ms100;
-
-        private long ms100LastCount;
-
-        public long Time100ms => ms100;
-
-        private long ms200;
-
-        private long ms200LastCount;
-
-        public long Time200ms => ms200;
-
-        private long ms500;
-
-        private long ms500LastCount;
-
-        public long Time500ms => ms500;
-
-        private long ms1000;
-
-        private long ms1000LastCount;
-
-        public long Time1000ms => ms1000;
-
-        private long ms2000;
-
-        private long ms2000LastCount;
-
-        public long Time2000ms => ms2000;
-
-        private long ms5000;
-
-        private long ms5000LastCount;
-
-        public long Time5000ms => ms5000;
-
-        private long ms10000;
-
-        private long ms10000LastCount;
-
-        public long Time10000ms => ms10000;
-
-        private long msOther;
-
-        private long msOtherLastCount;
-
-        public long TimeOtherms => msOther;
-
-        private double mLastRpsTime = 0;
-
         private int mGetStatus = 0;
 
-        private StatisticsData mStatisticsData = null;
+        private CodeStatisticsData mStatisticsData;
 
-        public StatisticsData GetData()
+        public CodeStatisticsData GetData()
         {
-            if (mStatisticsData == null || TimeWatch.GetTotalSeconds() - mStatisticsData.CreateTime >= 1)
+            if (TimeWatch.GetTotalSeconds() - mLastTime > 1)
+            {
                 if (System.Threading.Interlocked.CompareExchange(ref mGetStatus, 1, 0) == 0)
                 {
-                    StatisticsData result = new StatisticsData();
+                    CodeStatisticsData result = mStatisticsData;
                     result.CreateTime = TimeWatch.GetTotalSeconds();
                     result.Count = Count;
-                    result.Rps = Rps;
-                    result.Name = Name;
-                    result.Times.Add(Time10ms);
-                    result.Times.Add(Time20ms);
-                    result.Times.Add(Time50ms);
-                    result.Times.Add(Time100ms);
-                    result.Times.Add(Time200ms);
-                    result.Times.Add(Time500ms);
-                    result.Times.Add(Time1000ms);
-                    result.Times.Add(Time2000ms);
-                    result.Times.Add(Time5000ms);
-                    result.Times.Add(Time10000ms);
-                    result.Times.Add(TimeOtherms);
                     double now = TimeWatch.GetTotalSeconds();
-                    double time = now - mLastRpsTime;
+                    double time = now - mLastTime;
+                    result.Increase = (double)(mCount - mLastCount);
+                    result.Rps = (int)((result.Increase) / time);
 
-                    int value = (int)((double)(ms10 - ms10LastCount) / time);
-                    ms10LastCount = ms10;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms20 - ms20LastCount) / time);
-                    ms20LastCount = ms20;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms50 - ms50LastCount) / time);
-                    ms50LastCount = ms50;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms100 - ms100LastCount) / time);
-                    ms100LastCount = ms100;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms200 - ms200LastCount) / time);
-                    ms200LastCount = ms200;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms500 - ms500LastCount) / time);
-                    ms500LastCount = ms500;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms1000 - ms1000LastCount) / time);
-                    ms1000LastCount = ms1000;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms2000 - ms2000LastCount) / time);
-                    ms2000LastCount = ms2000;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms5000 - ms5000LastCount) / time);
-                    ms5000LastCount = ms5000;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(ms10000 - ms10000LastCount) / time);
-                    ms10000LastCount = ms10000;
-                    result.TimesRps.Add(value);
-
-
-                    value = (int)((double)(msOther - msOtherLastCount) / time);
-                    msOtherLastCount = msOther;
-                    result.TimesRps.Add(value);
-
-                    mLastRpsTime = now;
-
-                    mStatisticsData = result;
-
+                    mLastTime = now;
+                    mLastCount = mCount;
                     mGetStatus = 0;
                 }
+            }
             return mStatisticsData;
         }
 
     }
 
-    public class StatisticsGroup
+    public class TimeStatistics
     {
-        public StatisticsGroup(Statistics statistics)
+        public TimeStatistics(int start, int end)
         {
-            Statistics = statistics;
+            mData = new TimeStatisticsData(start, end, 0, 0);
+            mData.Name = Name;
+            Start = start;
+            End = end;
         }
 
-        public Statistics Statistics { get; set; }
+        public string Name
+        {
+            get
+            {
+                string name;
+                if (Start > 0 && End > 0)
+                {
+                    if (Start >= 1000)
+                        name = $"{Start / 1000}s";
+                    else
+                        name = $"{Start}ms";
 
-        public String Url { get; set; }
+                    if (End >= 1000)
+                        name += $"-{End / 1000}s";
+                    else
+                        name += $"-{End}ms";
 
-        public string Server { get; set; }
+                }
+                else if (Start > 0)
+                {
+                    if (Start >= 1000)
+                        name = $">{Start / 1000}s";
+                    else
+                        name = $">{Start}ms";
+                }
+                else
+                {
+                    name = $"<{End}ms";
+                }
+                return name;
+            }
+        }
 
-        public StatisticsData All { get; set; }
+        public int Start { get; set; }
 
-        public StatisticsData Other { get; set; }
+        public int End { get; set; }
 
-        public StatisticsData _1xx { get; set; }
-        public StatisticsData _2xx { get; set; }
-        public StatisticsData _3xx { get; set; }
-        public StatisticsData _4xx { get; set; }
-        public StatisticsData _5xx { get; set; }
+        private long mCount;
+
+        public long Count => mCount;
+
+        private TimeStatisticsData mData;
+
+        private long mLastCount;
+
+        private double mLastTime;
+
+        public bool Match(int time)
+        {
+            if (End == 0)
+                return time >= Start;
+            return time >= Start && time < End;
+        }
+
+        public double Increase { get; set; }
+
+        public void Add()
+        {
+            System.Threading.Interlocked.Increment(ref mCount);
+        }
+
+        public TimeStatisticsData GetData()
+        {
+            double now = TimeWatch.GetTotalSeconds();
+            double time = now - mLastTime;
+            if (time > 1)
+            {
+                mData.Count = mCount;
+                this.Increase = (double)(mCount - mLastCount);
+                mData.Rps = (int)(Increase / (time));
+                mLastTime = now;
+                mLastCount = mCount;
+            }
+            return mData;
+        }
     }
 
     public class StatisticsData
     {
-        public StatisticsData()
+        public StatisticsData(Statistics statistics)
         {
-            Times = new List<long>();
-            TimesRps = new List<long>();
+            Statistics = statistics;
+            Times = new TimeStatisticsData[statistics.Times.Count];
         }
 
+        public Statistics Statistics { get; set; }
+        public String Url { get; set; }
+        public string Server { get; set; }
+        public CodeStatisticsData All { get; set; }
+        public CodeStatisticsData Other { get; set; }
+        public CodeStatisticsData _1xx { get; set; }
+        public CodeStatisticsData _2xx { get; set; }
+        public CodeStatisticsData _3xx { get; set; }
+        public CodeStatisticsData _4xx { get; set; }
+        public CodeStatisticsData _5xx { get; set; }
+
+        public TimeStatisticsData[] Times { get; private set; }
+    }
+
+    public class CodeStatisticsData
+    {
+        public CodeStatisticsData()
+        {
+
+        }
         public string Name { get; set; }
 
         public long Count { get; set; }
 
         public long Rps { get; set; }
 
-        public List<long> Times { get; set; }
-
-        public List<long> TimesRps { get; set; }
-
+        public double Increase { get; set; }
 
         public double CreateTime { get; set; }
 
-        public IList<TimeData> GetTimeDatas()
+
+    }
+
+    public class TimeStatisticsData
+    {
+        public TimeStatisticsData(int start, int end, long count, long rps)
         {
-            List<TimeData> result = new List<TimeData>();
-            result.Add(new TimeData(0, 0, 10, Times[0], TimesRps[0]));
-            result.Add(new TimeData(1, 10, 20, Times[1], TimesRps[1]));
-            result.Add(new TimeData(2, 20, 50, Times[2], TimesRps[2]));
-            result.Add(new TimeData(3, 50, 100, Times[3], TimesRps[3]));
-            result.Add(new TimeData(4, 100, 200, Times[4], TimesRps[4]));
-            result.Add(new TimeData(5, 200, 500, Times[5], TimesRps[5]));
-            result.Add(new TimeData(6, 500, 1000, Times[6], TimesRps[6]));
-            result.Add(new TimeData(7, 1000, 2000, Times[7], TimesRps[7]));
-            result.Add(new TimeData(8, 2000, 5000, Times[8], TimesRps[8]));
-            result.Add(new TimeData(9, 5000, 10000, Times[9], TimesRps[9]));
-            result.Add(new TimeData(10, 10000, 0, Times[10], TimesRps[10]));
-            return result;
+            StartTime = start;
+            EndTime = end;
+            Count = count;
+            Rps = rps;
         }
 
-        public class TimeData
+        public int StartTime { get; set; }
+
+        public int EndTime { get; set; }
+
+        public long Count { get; set; }
+
+        public long Rps { get; set; }
+
+        public string Name
         {
-            public TimeData(int index, int start, int end, long count, long rps)
-            {
-                StartTime = start;
-                EndTime = end;
-                Count = count;
-                Rps = rps;
-                Index = index;
-            }
-
-            public int Index { get; set; }
-
-            public int StartTime { get; set; }
-
-            public int EndTime { get; set; }
-
-            public long Count { get; set; }
-
-            public long Rps { get; set; }
-
-            public string Name
-            {
-                get
-                {
-                    string name;
-                    if (StartTime > 0 && EndTime > 0)
-                    {
-                        if (StartTime >= 1000)
-                            name = $"{StartTime / 1000}s";
-                        else
-                            name = $"{StartTime}ms";
-
-                        if (EndTime >= 1000)
-                            name += $"-{EndTime / 1000}s";
-                        else
-                            name += $"-{EndTime}ms";
-
-                    }
-                    else if (StartTime > 0)
-                    {
-                        if (StartTime >= 1000)
-                            name = $">{StartTime / 1000}s";
-                        else
-                            name = $">{StartTime}ms";
-                    }
-                    else
-                    {
-                        name = $"<{EndTime}ms";
-                    }
-                    return name;
-                }
-            }
+            get; set;
         }
-
     }
 
     public class UrlStatistics
@@ -484,76 +388,94 @@ namespace Bumblebee
         public UrlStatistics(string url)
         {
             Statistics.Url = url;
+            Url = url;
         }
+
+        public string Url { get; private set; }
+
+        private UrlStatisticsData mData = new UrlStatisticsData();
+
+        public string Ext { get; set; }
 
         public string Path { get; set; }
 
         public Statistics Statistics { get; internal set; } = new Statistics();
 
-        public ConcurrentDictionary<string, ServerStatistics> Servers { get; internal set; } = new ConcurrentDictionary<string, ServerStatistics>();
+        public ConcurrentDictionary<string, Statistics> Servers { get; internal set; } = new ConcurrentDictionary<string, Statistics>();
 
-        public void Add(int code, long time, Servers.ServerAgent server)
+        public ConcurrentDictionary<string, Statistics> Domains { get; internal set; } = new ConcurrentDictionary<string, Statistics>();
+
+        public void Add(int code, long time, Servers.ServerAgent server, BeetleX.FastHttpApi.HttpRequest request)
         {
             Statistics.Add(code, time);
             if (server != null)
             {
-                if (!Servers.TryGetValue(server.UriKey, out ServerStatistics s))
+                if (!Servers.TryGetValue(server.UriKey, out Statistics s))
                 {
-                    lock (Servers)
+                    s = new Statistics();
+                    s.Server = server.UriKey;
+                    s.Url = this.Statistics.Url;
+                    if (!Servers.TryAdd(server.UriKey, s))
                     {
-                        if (!Servers.TryGetValue(server.UriKey, out s))
-                        {
-                            s = new ServerStatistics(server.UriKey);
-                            s.Statistics.Url = this.Statistics.Url;
-                            Servers[s.Host] = s;
-                        }
+                        Servers.TryGetValue(server.UriKey, out s);
+                    }
+                }
+                s.Add(code, time);
+            }
+            var domain = request.GetHostBase();
+            if (!string.IsNullOrEmpty(domain))
+            {
+                if (!Domains.TryGetValue(domain, out Statistics s))
+                {
+                    s = new Statistics();
+                    s.Server = domain;
+                    s.Url = this.Statistics.Url;
+                    if (!Domains.TryAdd(domain, s))
+                    {
+                        Domains.TryGetValue(domain, out s);
                     }
                 }
                 s.Add(code, time);
             }
         }
 
-        public class ServerStatistics
+        public UrlStatisticsData GetResult()
         {
-            public ServerStatistics(string host)
-            {
-                Host = host;
-            }
-
-            public Statistics Statistics { get; internal set; } = new Statistics();
-
-            public string Host { get; internal set; }
-
-            public void Add(int code, long time)
-            {
-                Statistics.Add(code, time);
-            }
-        }
-
-        public UrlStatisticsReport GetResult()
-        {
-            return new UrlStatisticsReport(this);
+            mData.Update(this);
+            return mData;
         }
     }
 
-    public class UrlStatisticsReport
+    public class UrlStatisticsData
     {
-        public UrlStatisticsReport(UrlStatistics item)
+
+        public void Update(UrlStatistics item)
         {
+
             All = item.Statistics.GetData();
+            UrlInfo = item;
             Statistics = item.Statistics;
             foreach (var s in item.Servers)
             {
-                var d = s.Value.Statistics.GetData();
+                var d = s.Value.GetData();
                 Servers[d.Server] = d;
             }
+
+            foreach (var s in item.Domains)
+            {
+                var d = s.Value.GetData();
+                Domains[d.Server] = d;
+            }
         }
+        public UrlStatistics UrlInfo { get; set; }
 
         public Statistics Statistics { get; private set; }
 
-        public StatisticsGroup All { get; set; }
+        public StatisticsData All { get; set; }
 
-        public Dictionary<string, StatisticsGroup> Servers { get; private set; } = new Dictionary<string, StatisticsGroup>();
+        public Dictionary<string, StatisticsData> Servers { get; private set; } = new Dictionary<string, StatisticsData>();
+
+        public Dictionary<string, StatisticsData> Domains { get; private set; } = new Dictionary<string, StatisticsData>();
     }
 
 }

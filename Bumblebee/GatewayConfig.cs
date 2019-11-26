@@ -23,6 +23,10 @@ namespace Bumblebee
 
         public bool OutputServerAddress { get; set; }
 
+        public bool StatisticsEnabled { get; set; } = true;
+
+        public string StatisticsExts { get; set; }
+
         public int BufferSize { get; set; }
 
         public int PoolMaxSize { get; set; }
@@ -42,6 +46,7 @@ namespace Bumblebee
 
             this.BufferSize = gateway.BufferSize;
             this.PoolMaxSize = gateway.PoolMaxSize;
+            this.StatisticsEnabled = gateway.StatisticsEnabled;
             foreach (var server in gateway.Agents.Servers)
             {
                 Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(), Remark = server.Remark, Category = server.Category });
@@ -51,6 +56,7 @@ namespace Bumblebee
             this.AgentRequestQueueSize = gateway.AgentRequestQueueSize;
             this.GatewayQueueSize = gateway.GatewayQueueSize;
             this.InstanceID = gateway.InstanceID;
+            this.StatisticsExts = gateway.GetStatisticsExts();
             UrlConfig urlConfig = new UrlConfig();
             urlConfig.From(gateway.Routes.Default);
             Urls.Add(urlConfig);
@@ -77,12 +83,14 @@ namespace Bumblebee
 
             BufferPool.BUFFER_SIZE = gateway.BufferSize;
             BufferPool.POOL_MAX_SIZE = gateway.PoolMaxSize;
+            gateway.StatisticsEnabled = this.StatisticsEnabled;
             gateway.AgentRequestQueueSize = this.AgentRequestQueueSize;
             gateway.OutputServerAddress = this.OutputServerAddress;
             gateway.AgentMaxConnection = this.AgentMaxConnection;
             gateway.PluginCenter.PluginsStatus = this.PluginsStatus;
             gateway.GatewayQueueSize = this.GatewayQueueSize;
             gateway.InstanceID = this.InstanceID;
+            gateway.SetStatisticsExts(this.StatisticsExts);
             this.PluginConfig.To(gateway.Pluginer);
 
             foreach (var server in Servers)

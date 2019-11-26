@@ -235,8 +235,15 @@ namespace Bumblebee.Servers
         {
             try
             {
+                if (request.Server.EnableLog(LogType.Debug))
+                {
+                    request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {urlRoute.Url}'s get connectino pool");
+                }
                 var clientAgent = await PopClient();
-
+                if (request.Server.EnableLog(LogType.Debug))
+                {
+                    request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {urlRoute.Url}'s get connectino completed");
+                }
                 if (clientAgent == null)
                 {
                     string error = $"Unable to reach {Host}:{Port} request queue overflow!";
