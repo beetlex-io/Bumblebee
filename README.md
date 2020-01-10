@@ -8,8 +8,21 @@ Bumblebee是一款支持`http`和`websocket`。它的重点是用于对WebAPI微
 - 完善的插件扩展机制，可以制定如管理，监控，日志和安全访问等等功能。
 - 支持`https`可以制定更安全的通讯服务应用
 - 支持`windows`,`linux`等多平台
+## 可用插件
+|名称|功能描述|
+|----|-------|
+|[BeetleX.Bumblebee.Configuration](https://www.nuget.org/packages/BeetleX.Bumblebee.Configuration/)|配置管理插件，用于网关管理，负载配置，日志查看和插件管理等|
+|[BeetleX.Bumblebee.Jwt](https://www.nuget.org/packages/BeetleX.Bumblebee.Jwt/)|JWT验证插件，可以通过这插件配置统一请求验证|
+|[BeetleX.Bumblebee.Logs](https://www.nuget.org/packages/BeetleX.Bumblebee.Logs/)|请求日志记录插件，可以配置把请求日志存储到文件或数据库|
+|[BeetleX.Bumblebee.ConcurrentLimits](https://www.nuget.org/packages/BeetleX.Bumblebee.ConcurrentLimits/)|并发控制插件，可以对请求的IP和相关URL配置并发限制，控制服务平稳运行|
+|[BeetleX.Bumblebee.Caching](https://www.nuget.org/packages/BeetleX.Bumblebee.Caching/)|网关缓存插件|
+|[BeetleX.Bumblebee.UrlRewrite](https://www.nuget.org/packages/BeetleX.Bumblebee.UrlRewrite/)|Url重写插件|
+|[BeetleX.Bumblebee.Consul](https://www.nuget.org/packages/BeetleX.Bumblebee.Consul/)|Consul服务发现插件|
+|[BeetleX.Bumblebee.InvalidUrlFilter](https://www.nuget.org/packages/BeetleX.Bumblebee.InvalidUrlFilter/)|请求Url过虑插件|
 ## 详细使用文档
 [http://doc.beetlex.io](http://doc.beetlex.io/#29322e3796694434894fc2e6e8747626)
-## 在线演示
+## 官网部署案例
 http://beetlex.io/__system/bumblebee/
+## 最新可运行包
+https://github.com/IKende/Bumblebee/tree/master/bin
 
