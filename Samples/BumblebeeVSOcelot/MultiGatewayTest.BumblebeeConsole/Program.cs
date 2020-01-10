@@ -1,12 +1,12 @@
 ﻿using BeetleX.Buffers;
+using Bumblebee;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Bumblebee.ConsoleServer
+namespace MultiGatewayTest.BumblebeeConsole
 {
     class Program
     {
@@ -28,17 +28,14 @@ namespace Bumblebee.ConsoleServer
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
             g = new Gateway();
-            g.Open();
-            g.LoadPlugin(typeof(Bumblebee.Configuration.ErrorFilter).Assembly);
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            g.HttpOptions(o =>
             {
-                var ps = new ProcessStartInfo("http://localhost:9090/__system/bumblebee/")
-                {
-                    UseShellExecute = true,
-                    Verb = "open"
-                };
-                Process.Start(ps);
-            }
+                o.Port = 9001;
+                o.LogToConsole = true;
+            });
+            g.Open();
+            g.Routes.Default.AddServer("http://192.168.2.19:8080");
+            g.SaveConfig();
             return Task.CompletedTask;
         }
         public virtual Task StopAsync(CancellationToken cancellationToken)

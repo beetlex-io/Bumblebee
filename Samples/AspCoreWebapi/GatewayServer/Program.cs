@@ -17,10 +17,9 @@ namespace GatewayServer
 
             //default的是'*',匹配优先级最低
             mGateway.Routes.Default
-               .AddServer("http://192.168.2.18:8001", 10, 100)
-               .AddServer("http://192.168.2.18:8002", 10, 100)
-               .AddServer("http://192.168.2.18:8003", 10, 100);
-            //以上是手动代码的方式来构建网关，实际上可以通过配置'Gateway.json'来描述即可,具本查看https://github.com/IKende/Bumblebee
+               .AddServer("http://192.168.2.18:8001", 10)
+               .AddServer("http://192.168.2.18:8002", 10)
+               .AddServer("http://192.168.2.18:8003", 10);
             mGateway.Open();
             Console.Read();
         }

@@ -20,6 +20,6 @@ namespace MultiGatewayTest.WebApi
 
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
              WebHost.CreateDefaultBuilder(args)
-                  .UseStartup<Startup>().UseKestrel(opt => { opt.Listen(IPAddress.Parse("0.0.0.0"), 8081); });
+                  .UseStartup<Startup>().UseKestrel(opt => { opt.Listen(IPAddress.Parse("0.0.0.0"), 8080); });
     }
 }

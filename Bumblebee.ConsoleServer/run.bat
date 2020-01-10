@@ -1,1 +1,0 @@
-dotnet Bumblebee.ConsoleServer.dll

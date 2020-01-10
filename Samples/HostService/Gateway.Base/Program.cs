@@ -1,21 +1,26 @@
-﻿using BeetleX.Buffers;
-using Bumblebee;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BeetleX;
+using Bumblebee;
+using System.Diagnostics;
 
-namespace MultiGatewayTest.BumblebeeConsole
+namespace HttpGateway.Base
 {
     class Program
     {
+        private static Gateway g;
+
         static void Main(string[] args)
         {
             var builder = new HostBuilder()
+
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddHostedService<HttpServerHosted>();
+
                 });
             builder.Build().Run();
         }
@@ -27,12 +32,24 @@ namespace MultiGatewayTest.BumblebeeConsole
 
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
-            BufferPool.BUFFER_SIZE = 1024 * 8;
-            BufferPool.POOL_MAX_SIZE = 1024 * 200;
             g = new Gateway();
-            g.HttpOptions(o => { o.UrlIgnoreCase = false; });
-
+            g.HttpOptions(o =>
+            {    
+                o.Port = 80;
+                o.LogToConsole = true;
+                o.WriteLog = true;
+            });
             g.Open();
+            g.LoadPlugin(typeof(Bumblebee.Configuration.Config).Assembly);
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                var ps = new ProcessStartInfo($"http://localhost:{g.HttpServer.Options.Port}/__system/bumblebee/index.html")
+                {
+                    UseShellExecute = true,
+                    Verb = "open"
+                };
+                Process.Start(ps);
+            }
             return Task.CompletedTask;
         }
         public virtual Task StopAsync(CancellationToken cancellationToken)
