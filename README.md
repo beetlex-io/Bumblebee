@@ -19,6 +19,7 @@ Bumblebee是一款支持`http`和`websocket`。它的重点是用于对WebAPI微
 |[BeetleX.Bumblebee.UrlRewrite](https://www.nuget.org/packages/BeetleX.Bumblebee.UrlRewrite/)|Url重写插件|
 |[BeetleX.Bumblebee.Consul](https://www.nuget.org/packages/BeetleX.Bumblebee.Consul/)|Consul服务发现插件|
 |[BeetleX.Bumblebee.InvalidUrlFilter](https://www.nuget.org/packages/BeetleX.Bumblebee.InvalidUrlFilter/)|请求Url过虑插件|
+|[BeetleX.Bumblebee.Aggregation](https://www.nuget.org/packages/BeetleX.Bumblebee.Aggregation/)|聚合插件(需要BeetleX.FastHttpApi 1.7.7.8)|
 ## 详细使用文档
 [http://doc.beetlex.io](http://doc.beetlex.io/#29322e3796694434894fc2e6e8747626)
 ## 官网部署案例
