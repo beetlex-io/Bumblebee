@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using BeetleX.EventArgs;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using System.Linq;
+
 namespace Bumblebee.Servers
 {
     public class ServerAgent : IDisposable
@@ -36,7 +38,17 @@ namespace Bumblebee.Servers
             this.Available = false;
 
             mQueueWaitMaxLength = gateway.AgentRequestQueueSize;
+            string protocol = Uri.Scheme.ToLower();
+            WebSocket = (protocol == "ws" || protocol == "wss");
+            mWSClient = GetWSClient();
+            AddressHeader = Encoding.ASCII.GetBytes("Logic-Server: " + ServerName + "\r\n");
         }
+
+        internal byte[] AddressHeader { get; set; }
+
+        private WSAgents.WSClient mWSClient;
+
+        public bool WebSocket { get; set; }
 
         public string UriKey { get; set; }
 
@@ -56,6 +68,15 @@ namespace Bumblebee.Servers
             }
         }
 
+        public WSAgents.WSClient GetWSClient()
+        {
+            var result = new WSAgents.WSClient(Uri);
+            result.ServerAgent = this;
+            return result;
+        }
+
+        public HealthStatus Health { get; set; }
+
         public string Category { get; set; }
 
         public string Remark { get; set; }
@@ -74,13 +95,24 @@ namespace Bumblebee.Servers
             {
                 try
                 {
-                    var value = await client.GetStreamAsync(Uri);
+                    if (WebSocket)
+                    {
+                        mWSClient.Ping();
+                    }
+                    else
+                    {
+                        using (var value = await client.GetStreamAsync(Uri))
+                        {
+
+                        }
+
+                    }
                     OnSocketError(false);
                 }
                 catch (Exception e_)
                 {
 
-                    if (e_ is SocketException || e_.InnerException is SocketException)
+                    if (e_ is SocketException || e_.InnerException is SocketException || e_ is BeetleX.BXException)
                     {
                         OnSocketError(true);
                     }
@@ -113,7 +145,7 @@ namespace Bumblebee.Servers
                         {
                             Gateway.HttpServer.Log(LogType.Info, $"Gateway {Uri} server not available");
                         }
-                        Gateway.OnServerChangeStatus(this,false);
+                        Gateway.OnServerChangeStatus(this, false);
                     }
                     this.Available = false;
                 }
@@ -130,7 +162,7 @@ namespace Bumblebee.Servers
                     Gateway.OnServerChangeStatus(this, true);
                 }
                 this.Available = true;
-                
+
             }
         }
 
@@ -259,8 +291,12 @@ namespace Bumblebee.Servers
                 {
                     clientAgent.Status = TcpClientAgentStatus.None;
                     RequestAgent agent = new RequestAgent(clientAgent, this, request, response, serverInfo, urlRoute);
-                    agent.Completed = OnCompleted;
-                    agent.Execute();
+                    var eventRequesting = Gateway.OnServerHttpRequesting(agent);
+                    if (eventRequesting == null || !eventRequesting.Cancel)
+                    {
+                        agent.Completed = OnCompleted;
+                        agent.Execute();
+                    }
                 }
             }
             catch (Exception e_)
@@ -311,15 +347,52 @@ namespace Bumblebee.Servers
             return string.Format("({0}){1}", this.Available ? 1 : 0, Uri);
         }
 
-        public ServerAgent AddUrl(string url, string hashPattern, int weight, int maxRps)
+        public ServerAgent AddUrl(string url, string hashPattern, int weight, int maxRps, bool standby = false)
         {
-            var route = Gateway.SetRoute(url, hashPattern).AddServer(this.Uri.ToString(), weight, maxRps);
+            var route = Gateway.SetRoute(url, hashPattern).AddServer(this.Uri.ToString(), weight, maxRps, standby);
             return this;
         }
 
-        public ServerAgent AddUrl(string url, int weight, int maxRps)
+        public ServerAgent AddUrl(string url, int weight, int maxRps, bool standby = false)
         {
-            return AddUrl(url, null, weight, maxRps);
+            return AddUrl(url, null, weight, maxRps, standby);
+        }
+
+        private Dictionary<string, string> mProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public string this[string name]
+        {
+            get
+            {
+                mProperties.TryGetValue(name, out string value);
+                return value;
+            }
+            set
+            {
+                mProperties[name] = value;
+            }
+        }
+
+        public Tuple<string, string>[] GetProperties()
+        {
+            return (from a in mProperties select new Tuple<string, string>(a.Key, a.Value)).ToArray();
+        }
+
+        public void SetProperties(Tuple<string, string>[] items)
+        {
+            if (items != null)
+                foreach (var item in items)
+                    this[item.Item1] = item.Item2;
+        }
+
+        public void RemoveProperty(string name)
+        {
+            mProperties.Remove(name);
+        }
+
+        public void ClearProperties()
+        {
+            mProperties.Clear();
         }
     }
 }

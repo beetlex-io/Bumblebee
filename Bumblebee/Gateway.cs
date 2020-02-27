@@ -12,6 +12,10 @@ using BeetleX.EventArgs;
 using Bumblebee.Routes;
 using System.Collections.Concurrent;
 using System.Linq;
+using BeetleX.FastHttpApi.WebSockets;
+using Bumblebee.WSAgents;
+using System.Reflection;
+using System.Runtime;
 
 namespace Bumblebee
 {
@@ -23,6 +27,10 @@ namespace Bumblebee
         public const int CLUSTER_SERVER_UNAVAILABLE = 590;
 
         public const int URL_NODE_SERVER_UNAVAILABLE = 591;
+
+        public const int WEBSOCKET_INNER_ERROR = 510;
+
+        public const int WEBSOCKET_SUCCESS = 210;
 
         public const int GATEWAY_QUEUE_OVERFLOW = 592;
 
@@ -50,7 +58,7 @@ namespace Bumblebee
 
         public int BufferSize { get; set; } = 1024 * 4;
 
-        public int PoolMaxSize { get; set; } = 1024 * 10;
+        public int PoolMaxSize { get; set; } = 1024 * 50;
 
         static Gateway()
         {
@@ -69,13 +77,14 @@ namespace Bumblebee
             AgentMaxSocketError = 3;
             MaxStatsUrls = 20000;
             AgentMaxConnection = 200;
-            AgentRequestQueueSize = 2000;
+            AgentRequestQueueSize = 500;
             ThreadQueues = (Environment.ProcessorCount / 2);
             if (ThreadQueues == 0)
                 ThreadQueues = 1;
             GatewayQueueSize = Environment.ProcessorCount * 100;
             InstanceID = Guid.NewGuid().ToString("N");
-            GATEWAY_VERSION = $"BeetleX/Bumblebee[{GetType().Assembly.GetName().Version.ToString()}]";
+            GATEWAY_VERSION = $"beetlex.io[{typeof(BeetleX.BXException).Assembly.GetName().Version}/{HttpServer.GetType().Assembly.GetName().Version}/{GetType().Assembly.GetName().Version}]";
+
         }
 
         public const string GATEWAY_HEADER = "Gateway";
@@ -100,7 +109,15 @@ namespace Bumblebee
 
         public int MaxStatsUrls { get; set; }
 
+        public WSMessagesBus WSMessagesBus { get; set; } = new WSMessagesBus();
+
+        public bool WSEnabled { get; set; } = true;
+
         public event System.EventHandler<Events.EventServerStatusChangeArgs> ServerStatusChanged;
+
+        public event System.EventHandler<Events.EventServerRequestingArgs> ServerHttpRequesting;
+
+        public event System.EventHandler<RequestAgent> ServerHttpRequested;
 
         public PluginCenter PluginCenter { get; private set; }
 
@@ -191,7 +208,12 @@ namespace Bumblebee
             return this;
         }
 
-        private void OnRequest(object sender, EventHttpRequestArgs e)
+        private void OnHttpDisconnect(object sender, SessionEventArgs e)
+        {
+            WSMessagesBus.CloseSession(e.Session);
+        }
+
+        protected virtual void OnHttpRequest(object sender, EventHttpRequestArgs e)
         {
             try
             {
@@ -205,6 +227,8 @@ namespace Bumblebee
                 if (result.Item1)
                 {
                     var item = Routes.GetAgent(e.Request);
+                    if (e.Request.Data["debug_route"] != null)
+                        HttpServer.Log(LogType.Warring, $"DEBUG {e.Request.GetSourceUrl()} route to {item.UrlRoute.Url}");
                     if (item == null)
                     {
                         if (HttpServer.EnableLog(LogType.Info))
@@ -233,7 +257,7 @@ namespace Bumblebee
                             }
                             else
                             {
-                                AddRequest(new Tuple<UrlRouteAgent, HttpRequest, HttpResponse>(item, e.Request, e.Response));
+                                AddProxyRequest(new Tuple<UrlRouteAgent, HttpRequest, HttpResponse>(item, e.Request, e.Response));
                                 //item.Execute(e.Request, e.Response);
                             }
                         }
@@ -269,17 +293,10 @@ namespace Bumblebee
 
         }
 
-
         private void OnRouteExecute(Tuple<UrlRouteAgent, HttpRequest, HttpResponse> e)
         {
             try
             {
-                //if (!requestAgent.Request.Session.IsDisposed)
-                //    requestAgent.Execute();
-                //else
-                //{
-                //    requestAgent.Cancel();
-                //}
                 if (!e.Item2.Session.IsDisposed)
                     e.Item1.Execute(e.Item2, e.Item3);
             }
@@ -296,6 +313,29 @@ namespace Bumblebee
         public void Response(HttpResponse response, object result)
         {
             response.Result(result);
+        }
+
+        internal EventServerRequestingArgs OnServerHttpRequesting(Servers.RequestAgent requestAgent)
+        {
+            EventServerRequestingArgs e = null;
+            try
+            {
+
+                if (ServerHttpRequesting != null)
+                {
+                    e = new EventServerRequestingArgs(requestAgent, requestAgent.Request, requestAgent.Response, this);
+                    ServerHttpRequesting?.Invoke(this, e);
+                }
+            }
+            catch (Exception e_)
+            {
+                if (HttpServer.EnableLog(LogType.Error))
+                {
+                    HttpServer.Log(LogType.Error,
+                        $"Gateway {requestAgent.Request.RemoteIPAddress} {requestAgent.Request.Method} {requestAgent.Request.Url} server http requesting event error {e_.Message}{e_.StackTrace}");
+                }
+            }
+            return e;
         }
 
         internal void OnResponseError(EventResponseErrorArgs e)
@@ -329,6 +369,18 @@ namespace Bumblebee
 
         internal void OnRequestCompleted(Servers.RequestAgent success)
         {
+            try
+            {
+                ServerHttpRequested.Invoke(this, success);
+            }
+            catch (Exception e_)
+            {
+                if (HttpServer.EnableLog(BeetleX.EventArgs.LogType.Warring))
+                {
+                    HttpServer.Log(BeetleX.EventArgs.LogType.Warring,
+                        $"Gateway {success.Request.ID} {success.Request.RemoteIPAddress} {success.Request.Method} {success.Request.Url} error {e_.Message}@{e_.StackTrace}");
+                }
+            }
             RequestIncrementCompleted(success.Request, success.Code, success.Time, success.Server);
             if (Pluginer.RequestedEnabled)
                 Pluginer.Requested(success.GetEventRequestCompletedArgs());
@@ -362,7 +414,7 @@ namespace Bumblebee
             }
             try
             {
-                RequestIncrement.Invoke(this, new EventRequestIncrementArgs(request, code, time, server));
+                RequestIncrement?.Invoke(this, new EventRequestIncrementArgs(request, code, time, server));
             }
             catch (Exception e_)
             {
@@ -397,9 +449,13 @@ namespace Bumblebee
             }
         }
 
+        protected virtual void OnWebsocketReceive(object sender, WebSocketReceiveArgs e)
+        {
+            WSMessagesBus.Execute(this, e);
+        }
+
         public void Open()
         {
-
             HttpServer[GATEWAY_TAG] = this;
             HttpServer.ModuleManager.AssemblyLoding += (o, e) =>
             {
@@ -409,35 +465,67 @@ namespace Bumblebee
                 HttpServer.Options.CacheLogMaxSize = 1000;
             mIOQueue = new BeetleX.Dispatchs.DispatchCenter<Tuple<UrlRouteAgent, HttpRequest, HttpResponse>>(OnRouteExecute,
               ThreadQueues);
-            HttpServer.Options.UrlIgnoreCase = false;
+            // HttpServer.Options.UrlIgnoreCase = false;
+            if (HttpServer.Options.MaxWaitQueue > 0 && HttpServer.Options.MaxWaitQueue < 500)
+                HttpServer.Options.MaxWaitQueue = 1000;
             HttpServer.Options.AgentRewrite = true;
+            HttpServer.FrameSerializer = new WSAgents.WSAgentDataFrameSerializer();
+            if (WSEnabled)
+                HttpServer.WebSocketReceive = OnWebsocketReceive;
+            HttpServer.WriteLogo = OutputLogo;
             HttpServer.Open();
-            HttpServer.HttpRequesting += OnRequest;
+            HttpServer.HttpRequesting += OnHttpRequest;
+            HttpServer.HttpDisconnect += OnHttpDisconnect;
             LoadConfig();
-
+            HeaderTypeFactory.SERVAR_HEADER_BYTES = Encoding.ASCII.GetBytes("Server :" + GATEWAY_VERSION + "\r\n");
             PluginCenter.Load(typeof(Gateway).Assembly);
-            HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway server started [v:{this.GetType().Assembly.GetName().Version}]");
+
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);
 
+            ProxyBufferPool = new BufferPool(BufferSize, BufferPool.POOL_SIZE, PoolMaxSize);
         }
+
+        private void OutputLogo()
+        {
+            AssemblyCopyrightAttribute productAttr = typeof(BeetleX.BXException).Assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
+            var logo = "\r\n";
+            logo += "*******************************************************************************\r\n";
+            logo += " BeetleX http and websocket gateway framework \r\n";
+
+            logo += $" {productAttr.Copyright}\r\n";
+            logo += $" ServerGC    [{GCSettings.IsServerGC}]\r\n";
+            logo += $" BeetleX     Version [{typeof(BeetleX.BXException).Assembly.GetName().Version}]\r\n";
+            logo += $" FastHttpApi Version [{ typeof(HttpApiServer).Assembly.GetName().Version}] \r\n";
+            logo += $" Bumblebee   Version [{ typeof(Gateway).Assembly.GetName().Version}] \r\n";
+            logo += " -----------------------------------------------------------------------------\r\n";
+            foreach (var item in HttpServer.BaseServer.Options.Listens)
+            {
+                logo += $" {item}\r\n";
+            }
+            logo += "*******************************************************************************\r\n";
+
+            HttpServer.Log(LogType.Info, logo);
+
+
+        }
+
+        public BeetleX.Buffers.BufferPool ProxyBufferPool { get; private set; }
 
         public void Dispose()
         {
             ((IDisposable)HttpServer).Dispose();
         }
 
-
-
         public void SaveConfig()
         {
             try
             {
                 GatewayConfig.SaveConfig(this);
-                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway save config success");
+                HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"Gateway save config success");
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway save config error  {e_.Message}");
+                HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"Gateway save config error  {e_.Message}");
             }
 
         }
@@ -452,7 +540,7 @@ namespace Bumblebee
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
+                HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
             }
         }
 
@@ -461,11 +549,11 @@ namespace Bumblebee
             try
             {
                 config.To(this);
-                HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway load config success");
+                HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"Gateway load config success");
             }
             catch (Exception e_)
             {
-                HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
+                HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"Gateway load config error  {e_.Message}");
             }
         }
 
@@ -481,7 +569,7 @@ namespace Bumblebee
 
         public BeetleX.Dispatchs.DispatchCenter<Tuple<UrlRouteAgent, HttpRequest, HttpResponse>> IOQueue => mIOQueue;
 
-        internal void AddRequest(Tuple<UrlRouteAgent, HttpRequest, HttpResponse> e)
+        public void AddProxyRequest(Tuple<UrlRouteAgent, HttpRequest, HttpResponse> e)
         {
             mIOQueue.Enqueue(e, 3);
         }

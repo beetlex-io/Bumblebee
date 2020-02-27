@@ -1,4 +1,5 @@
-﻿using BeetleX.FastHttpApi;
+﻿using BeetleX;
+using BeetleX.FastHttpApi;
 
 using Bumblebee.Plugins;
 using Bumblebee.Servers;
@@ -22,8 +23,12 @@ namespace Bumblebee.Routes
             var values = url.Split('|', StringSplitOptions.RemoveEmptyEntries);
             if (values.Length > 1)
             {
-                Host = values[0];
+                Host = values[0].Split(';');
                 UrlPattern = values[1];
+            }
+            else
+            {
+                Host = new string[0];
             }
             mServers = new Servers.UrlRouteServerGroup(gateway, url);
             this.Pluginer = new Pluginer(Gateway, this);
@@ -58,13 +63,44 @@ namespace Bumblebee.Routes
 
         private RequestHashBuilder mRequestHashBuilder;
 
-        public string Host { get; private set; }
+        public string[] Host { get; private set; } = new string[0];
 
         public IGetServerHandler GetServerHandler { get; set; }
 
         public string Url { get; private set; }
 
         public string UrlPattern { get; set; }
+
+        #region rps limit
+
+        public int MaxRps { get; set; } = 0;
+
+        private int mRPS;
+
+        private long mLastTime;
+
+        internal bool ValidateRPS()
+        {
+            if (MaxRps == 0)
+                return true;
+            long now = TimeWatch.GetElapsedMilliseconds();
+
+            if (now - mLastTime >= 1000)
+            {
+                mLastTime = now;
+                System.Threading.Interlocked.Exchange(ref mRPS, 0);
+                return true;
+            }
+            else
+            {
+                var rps = System.Threading.Interlocked.Increment(ref mRPS);
+                return rps < MaxRps;
+            }
+
+        }
+
+
+        #endregion
 
         public Gateway Gateway { get; internal set; }
 
@@ -74,6 +110,12 @@ namespace Bumblebee.Routes
             {
                 return (from a in mServers.ServerWeightTable select a.Agent.Uri.ToString()).ToArray();
             }
+        }
+
+
+        public bool HasServer(HttpRequest request)
+        {
+            return Servers.Count(s => s.Agent.WebSocket == request.WebSocket) > 0;
         }
 
         private UrlRouteServerGroup mServers;
@@ -95,24 +137,26 @@ namespace Bumblebee.Routes
             if (hosts != null)
                 foreach (var item in hosts)
                 {
-                    AddServer(item, 10, 0);
+                    AddServer(item, 10, 0, false);
                 }
             return this;
         }
-        public UrlRoute AddServer(string host, int wediht)
+
+
+        public UrlRoute AddServer(string host, int wediht, bool standby = false)
         {
-            AddServer(host, wediht,0);
+            AddServer(host, wediht, 0, standby);
             return this;
         }
-        public UrlRoute AddServer(string host, int wediht, int maxRps)
+        public UrlRoute AddServer(string host, int wediht, int maxRps, bool standby)
         {
-            mServers.NewOrModify(host, wediht, maxRps);
+            mServers.NewOrModify(host, wediht, maxRps, standby);
             return this;
         }
 
-        public UrlRoute ChangeServerWedith(string host, int wediht, int maxRps)
+        public UrlRoute ChangeServerWedith(string host, int wediht, int maxRps, bool standby)
         {
-            mServers.NewOrModify(host, wediht, maxRps);
+            mServers.NewOrModify(host, wediht, maxRps, standby);
             return this;
         }
 
@@ -137,8 +181,17 @@ namespace Bumblebee.Routes
 
         public UrlRouteServerGroup.UrlServerInfo GetServerAgent(HttpRequest request)
         {
-            UrlRouteServerGroup.UrlServerInfo result;
-            result = Pluginer.GetServerHandler?.GetServer(Gateway, request, this.Servers);
+            UrlRouteServerGroup.UrlServerInfo result = null;
+
+            var handler = Pluginer.GetServerHandler;
+            if (Gateway.PluginCenter.PluginIsEnabled(handler))
+                result = handler?.GetServer(Gateway, request, this.Servers);
+            if (result == null)
+            {
+                handler = Gateway.Pluginer.GetServerHandler;
+                if (Gateway.PluginCenter.PluginIsEnabled(handler))
+                    result = handler?.GetServer(Gateway, request, Servers);
+            }
             if (result == null)
             {
                 ulong hashcode;
@@ -151,7 +204,7 @@ namespace Bumblebee.Routes
                 }
                 else
                     hashcode = (ulong)GetRequestHashcode();
-                result = mServers.GetAgent(hashcode);
+                result = mServers.GetAgent(hashcode, request);
             }
             return result;
         }

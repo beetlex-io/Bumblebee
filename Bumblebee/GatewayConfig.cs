@@ -27,6 +27,8 @@ namespace Bumblebee
 
         public string StatisticsExts { get; set; }
 
+        public bool WSEnabled { get; set; } = true;
+
         public int BufferSize { get; set; }
 
         public int PoolMaxSize { get; set; }
@@ -49,13 +51,21 @@ namespace Bumblebee
             this.StatisticsEnabled = gateway.StatisticsEnabled;
             foreach (var server in gateway.Agents.Servers)
             {
-                Servers.Add(new ServerInfo { MaxConnections = server.MaxConnections, Uri = server.Uri.ToString(), Remark = server.Remark, Category = server.Category });
+                Servers.Add(new ServerInfo
+                {
+                    MaxConnections = server.MaxConnections,
+                    Uri = server.Uri.ToString(),
+                    Remark = server.Remark,
+                    Category = server.Category,
+                    Properties = server.GetProperties()
+                });
             }
             this.OutputServerAddress = gateway.OutputServerAddress;
             this.AgentMaxConnection = gateway.AgentMaxConnection;
             this.AgentRequestQueueSize = gateway.AgentRequestQueueSize;
             this.GatewayQueueSize = gateway.GatewayQueueSize;
             this.InstanceID = gateway.InstanceID;
+            this.WSEnabled = gateway.WSEnabled;
             this.StatisticsExts = gateway.GetStatisticsExts();
             UrlConfig urlConfig = new UrlConfig();
             urlConfig.From(gateway.Routes.Default);
@@ -91,11 +101,13 @@ namespace Bumblebee
             gateway.GatewayQueueSize = this.GatewayQueueSize;
             gateway.InstanceID = this.InstanceID;
             gateway.SetStatisticsExts(this.StatisticsExts);
+            gateway.WSEnabled = this.WSEnabled;
             this.PluginConfig.To(gateway.Pluginer);
 
             foreach (var server in Servers)
             {
-                gateway.SetServer(server.Uri, server.Category, server.Remark, server.MaxConnections);
+                var agent = gateway.SetServer(server.Uri, server.Category, server.Remark, server.MaxConnections);
+                agent.SetProperties(server.Properties);
             }
             foreach (var s in gateway.Agents.Servers)
             {
@@ -127,6 +139,8 @@ namespace Bumblebee
             public string Category { get; set; }
 
             public string Remark { get; set; }
+
+            public Tuple<string, string>[] Properties { get; set; }
         }
 
         public class UrlConfig
@@ -142,6 +156,8 @@ namespace Bumblebee
 
             public string HashPattern { get; set; }
 
+            public int MaxRps { get; set; }
+
             public class RouteServer
             {
                 public string Url { get; set; }
@@ -149,6 +165,8 @@ namespace Bumblebee
                 public int Weight { get; set; }
 
                 public int MaxRps { get; set; }
+
+                public bool Standby { get; set; } = false;
             }
 
             public void From(Routes.UrlRoute urlRoute)
@@ -156,10 +174,11 @@ namespace Bumblebee
                 Url = urlRoute.Url;
                 Remark = urlRoute.Remark;
                 HashPattern = urlRoute.HashPattern;
+                MaxRps = urlRoute.MaxRps;
                 this.PluginConfig = new PluginConfig(urlRoute.Pluginer);
                 foreach (var server in urlRoute.Servers)
                 {
-                    Servers.Add(new RouteServer { Url = server.Agent.Uri.ToString(), Weight = server.Weight, MaxRps = server.MaxRPS });
+                    Servers.Add(new RouteServer { Url = server.Agent.Uri.ToString(), Weight = server.Weight, MaxRps = server.MaxRPS, Standby = server.Standby });
                 }
             }
 
@@ -171,7 +190,9 @@ namespace Bumblebee
                 this.PluginConfig.To(result.Pluginer);
                 foreach (var server in Servers)
                 {
-                    result.AddServer(server.Url, server.Weight, server.MaxRps);
+                    var r = result.AddServer(server.Url, server.Weight, server.MaxRps, server.Standby);
+
+                    r.MaxRps = this.MaxRps;
                 }
             }
 

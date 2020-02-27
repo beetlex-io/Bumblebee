@@ -4,6 +4,7 @@ using System.Text;
 using System.Collections.Concurrent;
 using System.Linq;
 using BeetleX.FastHttpApi;
+using BeetleX.EventArgs;
 
 namespace Bumblebee.Routes
 {
@@ -28,12 +29,32 @@ namespace Bumblebee.Routes
 
         private void OnUpdateUrlTable()
         {
-            List<UrlRoute> urls = new List<UrlRoute>();
-            urls.AddRange(mUrlRoutes.Values);
-            mMatchRoutes = (from a in urls
-                            orderby a.Host?.Length descending, a.UrlPattern.Length descending
-                            select a).ToList();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway update route url data table");
+            lock (mLockUpdateUrlTable)
+            {
+                List<UrlRoute> urls = new List<UrlRoute>();
+                urls.AddRange(mUrlRoutes.Values);
+                mMatchRoutes = (from a in urls
+                                orderby a.Host?.Length descending, a.UrlPattern.Length descending
+                                select a).ToList();
+                mVersion++;
+            }
+            Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"Gateway update route url data table");
+
+        }
+
+        private (long, List<UrlRoute>) GetMatchRoutes()
+        {
+            lock (mLockUpdateUrlTable)
+            {
+                return (mVersion, mMatchRoutes.ToList());
+            }
+        }
+
+        private object mLockUpdateUrlTable = new object();
+
+        public void UpdateUrlTable()
+        {
+            OnUpdateUrlTable();
         }
 
         public void ReloadPlugin()
@@ -42,11 +63,16 @@ namespace Bumblebee.Routes
             {
                 foreach (var item in mUrlRoutes.Values)
                     item.Pluginer.Reload();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin");
+                Gateway.HttpServer.GetLog(BeetleX.EventArgs.LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin");
+
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin error {e_.Message} {e_.StackTrace}");
+                Gateway.HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Info, $"Gateway route reload plugin error {e_.Message} {e_.StackTrace}");
+            }
+            finally
+            {
+                OnUpdateUrlTable();
             }
         }
 
@@ -68,32 +94,41 @@ namespace Bumblebee.Routes
         private UrlRouteAgent MatchAgent(HttpRequest request)
         {
             string url = request.GetSourceBaseUrl();
+            var routes = GetMatchRoutes();
             UrlRouteAgent agent = new UrlRouteAgent();
             agent.Url = url;
-            agent.Version = this.Version;
-            var urls = mMatchRoutes;
+            agent.Version = routes.Item1;
+            var urls = routes.Item2;
             agent.Routes = urls;
             for (int i = 0; i < urls.Count; i++)
             {
                 var routeItem = urls[i];
                 if (System.Text.RegularExpressions.Regex.IsMatch(url, routeItem.UrlPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
-                    if (routeItem.Servers.Length == 0 && routeItem.ApiLoader)
+                    if (!routeItem.HasServer(request) && routeItem.ApiLoader)
                         continue;
-                    if (string.IsNullOrEmpty(routeItem.Host))
+                    if (routeItem.Host == null || routeItem.Host.Length == 0)
                     {
                         agent.UrlRoute = routeItem;
                         return agent;
                     }
                     else
                     {
-                        if (!string.IsNullOrEmpty(request.Host) && request.Host.IndexOf(routeItem.Host, StringComparison.OrdinalIgnoreCase) >= 0)
+
+                        if (!string.IsNullOrEmpty(request.Host))
                         {
-                            agent.UrlRoute = routeItem;
-                            return agent;
+                            foreach (var item in routeItem.Host)
+                            {
+                                if (string.Compare(request.Host, item, true) == 0)
+                                {
+                                    agent.UrlRoute = routeItem;
+                                    return agent;
+                                }
+                            }
                         }
                     }
                 }
+
             }
             agent.UrlRoute = Default;
             return agent;
@@ -109,13 +144,13 @@ namespace Bumblebee.Routes
         public UrlRouteAgent GetAgent(HttpRequest request)
         {
             // ulong urlcode = GetUrlCode(string.Concat(request.Host, "|", request.GetSourceBaseUrl()));
-            string url = string.Concat(request.Host, "|", request.GetSourceBaseUrl());
+            string url = string.Concat(request.Host, "|", request.GetSourceBaseUrl(), "|", request.WebSocket);
             var item = urlRouteAgent.GetAgent(url);
+
             if (item == null || item.Version != Version || item.Routes.Count != mMatchRoutes.Count)
             {
                 item = MatchAgent(request);
                 urlRouteAgent.SetAgent(url, item);
-
             }
             return item;
         }
@@ -153,13 +188,7 @@ namespace Bumblebee.Routes
             return item;
         }
 
-        private object mLockUpdateUrlTable = new object();
 
-        public void UpdateUrlTable()
-        {
-            OnUpdateUrlTable();
-            System.Threading.Interlocked.Increment(ref mVersion);
-        }
 
         public UrlRoute NewOrGet(string url, string remark, string hashPattern = null, bool apiLoader = true)
         {
@@ -167,6 +196,7 @@ namespace Bumblebee.Routes
             {
                 Default.BuildHashPattern(hashPattern);
                 Default.Remark = remark;
+                UpdateUrlTable();
                 return Default;
             }
             if (!mUrlRoutes.TryGetValue(url, out UrlRoute item))
@@ -279,8 +309,14 @@ namespace Bumblebee.Routes
             public void SetAgent(string url, UrlRouteAgent agent)
             {
                 ConcurrentDictionary<string, UrlRouteAgent> keyValuePairs = mDictionarys[(int)(GetUrlIndex(url) % (uint)mDictionarys.Count)];
-                keyValuePairs[url] = agent;
-
+                if(!keyValuePairs.TryAdd(url,agent))
+                {
+                    keyValuePairs.TryGetValue(url, out UrlRouteAgent old);
+                    if (agent.Version > old.Version)
+                    {
+                        keyValuePairs[url] = agent;
+                    }
+                }
             }
 
             public UrlRouteAgent GetAgent(string url)

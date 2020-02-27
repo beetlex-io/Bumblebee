@@ -42,7 +42,7 @@ namespace Bumblebee
                 stream.Write("</p>");
             }
 
-            stream.WriteLine("  <hr style=\"margin: 0px; \" /> <p>Bumblebee webapi gateway (<a href=\"https://github.com/ikende\" target=\"_blank\">github.com</a>)</p>");
+            stream.WriteLine("  <hr style=\"margin: 0px; \" /> <p> Beetlex http gateway copyright @  2019-2020 <a href=\"http://beetlex.io\" target=\"_blank\"> beetlex.io</a></p>");
             stream.WriteLine("<body>");
             stream.WriteLine("</html>");
         }

@@ -87,12 +87,12 @@ namespace Bumblebee.Servers
                 }
                 result.Category = category;
                 result.Remark = remark;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway set {host} server max connections {maxConnections} success");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway set {host} server max connections {maxConnections} success");
 
             }
             catch (Exception e_)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}{e_.StackTrace}");
+                Gateway.HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}{e_.StackTrace}");
             }
             return result;
         }

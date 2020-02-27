@@ -5,10 +5,6 @@ VisualStudioVersion = 15.0.28010.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee", "Bumblebee\Bumblebee.csproj", "{DEEA9131-521C-4391-809C-4DC71A8432C7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee.BaseSample", "Bumblebee.BaseSample\Bumblebee.BaseSample.csproj", "{C91ED49F-D3F3-467E-912C-1DF362A6523D}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bumblebee.ConsoleServer", "Bumblebee.ConsoleServer\Bumblebee.ConsoleServer.csproj", "{E5615EE1-5D24-4718-B2C3-192CCF1C757B}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,14 +15,6 @@ Global
 		{DEEA9131-521C-4391-809C-4DC71A8432C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEEA9131-521C-4391-809C-4DC71A8432C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DEEA9131-521C-4391-809C-4DC71A8432C7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C91ED49F-D3F3-467E-912C-1DF362A6523D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C91ED49F-D3F3-467E-912C-1DF362A6523D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C91ED49F-D3F3-467E-912C-1DF362A6523D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C91ED49F-D3F3-467E-912C-1DF362A6523D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E5615EE1-5D24-4718-B2C3-192CCF1C757B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E5615EE1-5D24-4718-B2C3-192CCF1C757B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E5615EE1-5D24-4718-B2C3-192CCF1C757B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E5615EE1-5D24-4718-B2C3-192CCF1C757B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

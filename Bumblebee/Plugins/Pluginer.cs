@@ -6,6 +6,7 @@ using System.Text;
 using BeetleX.FastHttpApi;
 using Bumblebee.Plugins;
 using Bumblebee.Events;
+using BeetleX.EventArgs;
 
 namespace Bumblebee.Plugins
 {
@@ -30,13 +31,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.RequestingHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} requesting handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} requesting handler not found");
             }
             else
             {
                 mRequestingHandlerMap[name] = item;
                 mRequestingHandlers = (from a in mRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requesting handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requesting handler ");
             }
         }
 
@@ -44,7 +45,7 @@ namespace Bumblebee.Plugins
         {
             mRequestingHandlerMap.TryRemove(name, out IRequestingHandler item);
             mRequestingHandlers = (from a in mRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requesting handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requesting handler ");
         }
 
 
@@ -57,7 +58,18 @@ namespace Bumblebee.Plugins
                 for (int i = 0; i < items.Length; i++)
                 {
                     if (!e.Cancel && Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                        items[i].Execute(e);
+                    {
+                        try
+                        {
+                            items[i].Execute(e);
+                        }
+                        catch (Exception e_)
+                        {
+                            Gateway.HttpServer.GetLog(LogType.Error)?
+                                .Log(LogType.Error, $"gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.GetSourceUrl()} {items[i].Name} requesting plugin process error {e_.Message}@{e_.StackTrace}");
+                        }
+
+                    }
                 }
                 return (!e.Cancel, e.ResultType);
             }
@@ -89,13 +101,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.AgentRequestingHandler.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} agent requesting handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} agent requesting handler not found");
             }
             else
             {
                 mAgentRequestingHandlerMap[name] = item;
                 mAgentRequestingHandlers = (from a in mAgentRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} agent requesting handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} agent requesting handler ");
             }
         }
 
@@ -103,7 +115,7 @@ namespace Bumblebee.Plugins
         {
             mAgentRequestingHandlerMap.TryRemove(name, out IAgentRequestingHandler item);
             mAgentRequestingHandlers = (from a in mAgentRequestingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} agent requesting handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} agent requesting handler ");
         }
 
         public bool AgentRequesting(HttpRequest request, HttpResponse response, Servers.ServerAgent server, Routes.UrlRoute urlRoute)
@@ -115,7 +127,17 @@ namespace Bumblebee.Plugins
                 for (int i = 0; i < items.Length; i++)
                 {
                     if (!e.Cancel && Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                        items[i].Execute(e);
+                    {
+                        try
+                        {
+                            items[i].Execute(e);
+                        }
+                        catch (Exception e_)
+                        {
+                            Gateway.HttpServer.GetLog(LogType.Error)?
+                                .Log(LogType.Error, $"gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.GetSourceUrl()} {items[i].Name} agent requesting plugin process error {e_.Message}@{e_.StackTrace}");
+                        }
+                    }
                 }
                 return !e.Cancel;
             }
@@ -146,13 +168,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.HeaderWritingHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} header writing handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} header writing handler not found");
             }
             else
             {
                 mHeaderWritingHandlerMap[name] = item;
                 mHeaderWritingHandlers = (from a in mHeaderWritingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} header writing handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} header writing handler ");
             }
         }
 
@@ -160,7 +182,7 @@ namespace Bumblebee.Plugins
         {
             mHeaderWritingHandlerMap.TryRemove(name, out IHeaderWritingHandler item);
             mHeaderWritingHandlers = (from a in mHeaderWritingHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} header writing handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} header writing handler ");
         }
 
         public void HeaderWriting(HttpRequest request, HttpResponse response, Header header)
@@ -172,7 +194,17 @@ namespace Bumblebee.Plugins
                 for (int i = 0; i < items.Length; i++)
                 {
                     if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                        items[i].Execute(e);
+                    {
+                        try
+                        {
+                            items[i].Execute(e);
+                        }
+                        catch (Exception e_)
+                        {
+                            Gateway.HttpServer.GetLog(LogType.Error)?
+                                .Log(LogType.Error, $"gateway {request.ID} {request.RemoteIPAddress} {request.Method} {request.GetSourceUrl()} {items[i].Name} header writing plugin process error {e_.Message}@{e_.StackTrace}");
+                        }
+                    }
                 }
             }
         }
@@ -201,13 +233,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.RequestedHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} requested handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} requested handler not found");
             }
             else
             {
                 mRequestedHandlerMap[name] = item;
                 mRequestedHandlers = (from a in mRequestedHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requested handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} requested handler ");
             }
         }
 
@@ -215,7 +247,7 @@ namespace Bumblebee.Plugins
         {
             mRequestedHandlerMap.TryRemove(name, out IRequestedHandler item);
             mRequestedHandlers = (from a in mRequestedHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requested handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} requested handler ");
         }
 
         public bool RequestedEnabled
@@ -246,7 +278,17 @@ namespace Bumblebee.Plugins
                     for (int i = 0; i < items.Length; i++)
                     {
                         if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                            items[i].Execute(e);
+                        {
+                            try
+                            {
+                                items[i].Execute(e);
+                            }
+                            catch (Exception e_)
+                            {
+                                Gateway.HttpServer.GetLog(LogType.Error)?
+                                    .Log(LogType.Error, $"gateway {e.RequestID} {e.RemoteIPAddress} {e.Method} {e.SourceUrl} {items[i].Name} requested plugin process error {e_.Message}@{e_.StackTrace}");
+                            }
+                        }
                     }
                 }
             }
@@ -254,7 +296,7 @@ namespace Bumblebee.Plugins
             {
                 if (Gateway.HttpServer.EnableLog(BeetleX.EventArgs.LogType.Error))
                 {
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway {e.RequestID} {e.RemoteIPAddress} {UrlRoute?.Url} process requeted event error {e_.Message}{e_.StackTrace}");
+                    Gateway.HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"gateway {e.RequestID} {e.RemoteIPAddress} {UrlRoute?.Url} process requeted event error {e_.Message}{e_.StackTrace}");
                 }
             }
         }
@@ -283,13 +325,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.ResponseErrorHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} response handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} response handler not found");
             }
             else
             {
                 mResponseErrorHandlerMap[name] = item;
                 responseErrorHandlers = (from a in mResponseErrorHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} response error handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} response error handler ");
             }
 
         }
@@ -298,7 +340,7 @@ namespace Bumblebee.Plugins
         {
             mResponseErrorHandlerMap.TryRemove(name, out IResponseErrorHandler value);
             responseErrorHandlers = (from a in mResponseErrorHandlerMap.Values orderby (int)a.Level descending select a).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} response error handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} response error handler ");
         }
 
         public void ResponseError(EventResponseErrorArgs e)
@@ -309,7 +351,17 @@ namespace Bumblebee.Plugins
                 for (int i = 0; i < items.Length; i++)
                 {
                     if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                        items[i].Exeucte(e);
+                    {
+                        try
+                        {
+                            items[i].Exeucte(e);
+                        }
+                        catch (Exception e_)
+                        {
+                            Gateway.HttpServer.GetLog(LogType.Error)?
+                                .Log(LogType.Error, $"gateway {e.Request.ID} {e.Request.RemoteIPAddress} {e.Request.Method} {e.Request.GetSourceUrl()} {items[i].Name} response error plugin process error {e_.Message}@{e_.StackTrace}");
+                        }
+                    }
                 }
             }
         }
@@ -334,12 +386,12 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.GetServerHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} get server handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} get server handler not found");
             }
             else
             {
                 GetServerHandler = item;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} get server handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} get server handler ");
             }
         }
 
@@ -373,13 +425,13 @@ namespace Bumblebee.Plugins
             var item = Gateway.PluginCenter.RespondingHandlers.Get(name);
             if (item == null)
             {
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} responding handler not found");
+                Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {name} responding handler not found");
             }
             else
             {
                 mRespondingHandlerMap[name] = item;
                 mRespondingHandlers = (from a in mRespondingHandlerMap.Values orderby (int)a.Level descending select (a)).ToArray();
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} responding handler ");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} set {name} responding handler ");
             }
         }
 
@@ -387,7 +439,7 @@ namespace Bumblebee.Plugins
         {
             mRespondingHandlerMap.TryRemove(name, out IRespondingHandler item);
             mRespondingHandlers = (from a in mRespondingHandlerMap.Values orderby (int)a.Level descending select (a)).ToArray();
-            Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} responding handler ");
+            Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {UrlRoute?.Url} remove {name} responding handler ");
         }
 
 

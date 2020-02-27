@@ -9,6 +9,8 @@ using System.Net.Sockets;
 using Bumblebee.Events;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.IO;
+
 namespace Bumblebee.Servers
 {
     public class RequestAgent
@@ -34,9 +36,12 @@ namespace Bumblebee.Servers
             mRequestID = request.ID;
             //System.Threading.Interlocked.Increment(ref RequestCount);
             //mHistoryRequests[mRequestID] = this;
+            mProxyStream = new PipeStream(UrlRoute.Gateway.ProxyBufferPool);
         }
 
 
+
+        private PipeStream mProxyStream;
 
         //public static long RequestCount;
 
@@ -52,12 +57,13 @@ namespace Bumblebee.Servers
 
         public long RequestID => mRequestID;
 
+        public long StartTime => mStartTime;
+
         public int BodyReceives { get; private set; } = 0;
 
         public string ResponseStatus { get; private set; }
 
         private byte[] mBuffer;
-
 
         private Queue<byte> mEofBuffer;
 
@@ -83,6 +89,10 @@ namespace Bumblebee.Servers
 
         public int Code { get; set; }
 
+        public string HttpVersion { get; set; }
+
+        public string Message { get; set; }
+
         public RequestStatus Status { get; set; }
 
         public EventResponseErrorArgs ResponseError { get; set; }
@@ -91,8 +101,8 @@ namespace Bumblebee.Servers
         {
             mClientAgent.Status = TcpClientAgentStatus.ResponseError;
             HttpApiServer httpApiServer = Server.Gateway.HttpServer;
-            if (httpApiServer.EnableLog(BeetleX.EventArgs.LogType.Info))
-                httpApiServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway [{mRequestID}] request {Server.Host}:{Server.Port} error {e.Message}@{e.Error.InnerException?.Message} status {Status}");
+            if (httpApiServer.EnableLog(BeetleX.EventArgs.LogType.Warring))
+                httpApiServer.Log(BeetleX.EventArgs.LogType.Error, $"gateway [{mRequestID}] request {Server.Host}:{Server.Port} error {e.Error.Message}@{e.Error?.Message} status {Status}");
 
             if (Status == RequestStatus.Requesting)
             {
@@ -125,6 +135,49 @@ namespace Bumblebee.Servers
             return Request.Session.Stream.ToPipeStream();
         }
 
+        class ProxyDataBuffer : BeetleX.IWriteHandler
+        {
+
+            public ProxyDataBuffer(ArraySegment<byte> data)
+            {
+                mData = data;
+            }
+
+            private ArraySegment<byte> mData;
+
+            public Action<IWriteHandler> Completed { get; set; }
+
+            public void Write(Stream stream)
+            {
+                stream.Write(mData.Array, mData.Offset, mData.Count);
+                System.Buffers.ArrayPool<byte>.Shared.Return(mData.Array);
+            }
+        }
+
+
+        private void FlushProxyStream(bool end)
+        {
+            IBuffer buffer = mProxyStream.GetWriteCacheBufers();
+            if (buffer != null)
+            {
+                if (Request.Session.SSL)
+                {
+                    mProxyStream.Import(buffer);
+                    var length = (int)mProxyStream.Length;
+                    var data = System.Buffers.ArrayPool<byte>.Shared.Rent(length);
+                    mProxyStream.Read(data, 0, length);
+                    ProxyDataBuffer proxyData = new ProxyDataBuffer(new ArraySegment<byte>(data, 0, length));
+                    Request.Session.Send(proxyData);
+                }
+                else
+                {
+                    Request.Session.Send(buffer);
+                }
+            }
+            if (end)
+                mProxyStream.Dispose();
+        }
+
         private void OnReadResponseStatus(PipeStream pipeStream)
         {
             if (Status == RequestStatus.Responding)
@@ -133,11 +186,14 @@ namespace Bumblebee.Servers
                 if (indexof.EofData != null)
                 {
                     pipeStream.Read(mBuffer, 0, indexof.Length);
-                    GetRequestStream().Write(mBuffer, 0, indexof.Length);
+                    // GetRequestStream().Write(mBuffer, 0, indexof.Length);
+                    mProxyStream.Write(mBuffer, 0, indexof.Length);
+
                     var result = HttpParse.AnalyzeResponseLine(new ReadOnlySpan<byte>(mBuffer, 0, indexof.Length - 2));
                     ResponseStatus = Encoding.ASCII.GetString(mBuffer, 0, indexof.Length - 2);
                     Code = result.Item2;
                     Status = RequestStatus.RespondingHeader;
+
                 }
             }
         }
@@ -148,7 +204,7 @@ namespace Bumblebee.Servers
             {
                 Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"Gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream reading");
             }
-            PipeStream agentStream = GetRequestStream();
+            // PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingHeader)
             {
                 mClientAgent.Status = TcpClientAgentStatus.ResponseReciveHeader;
@@ -161,21 +217,26 @@ namespace Bumblebee.Servers
                     {
                         if (Request.VersionNumber == "1.0" && Request.KeepAlive)
                         {
-                            agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
+                            // agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
+                            mProxyStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
                         }
                         mResponseHeader.Add(Gateway.GATEWAY_HEADER, Gateway.GATEWAY_VERSION);
                         UrlRoute.Pluginer.HeaderWriting(Request, Response, mResponseHeader);
-                        mResponseHeader.Write(agentStream);
+                        // mResponseHeader.Write(agentStream);
+                        mResponseHeader.Write(mProxyStream);
                         if (Server.Gateway.OutputServerAddress)
                         {
-                            agentStream.Write("Logic-Server: " + Server.ServerName + "\r\n");
+                            // agentStream.Write("Logic-Server: " + Server.ServerName + "\r\n");
+                            mProxyStream.Write(Server.AddressHeader, 0, Server.AddressHeader.Length);
                         }
-                        agentStream.Write(mBuffer, 0, indexof.Length);
+                        //agentStream.Write(mBuffer, 0, indexof.Length);
+                        mProxyStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
                         if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
                         {
                             Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read header ");
                         }
+                        FlushProxyStream(false);
                         return;
                     }
                     else
@@ -199,7 +260,6 @@ namespace Bumblebee.Servers
 
         private void OnReadResponseBody(PipeStream pipeStream)
         {
-            PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingBody)
             {
                 mClientAgent.Status = TcpClientAgentStatus.ResponseReceiveBody;
@@ -213,7 +273,8 @@ namespace Bumblebee.Servers
                         {
                             Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
                         }
-                        agentStream.Write(mBuffer, 0, len);
+                        mProxyStream.Write(mBuffer, 0, len);
+
                         if (len > 5)
                         {
                             for (int i = len - 5; i < len; i++)
@@ -244,14 +305,15 @@ namespace Bumblebee.Servers
                         }
                         if (end)
                         {
+
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), true);
                             OnCompleted(null);
-                            Request.Session.Stream.Flush();
                             return;
                         }
                         else
                         {
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
+                            FlushProxyStream(false);
                         }
                     }
                 }
@@ -260,7 +322,6 @@ namespace Bumblebee.Servers
                     if (mRequestLength == 0)
                     {
                         OnCompleted(null);
-                        Request.Session.Stream.Flush();
                         return;
                     }
                     while (pipeStream.Length > 0)
@@ -275,19 +336,20 @@ namespace Bumblebee.Servers
                                 Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream read size {len} ");
                             }
                             mRequestLength -= len;
-                            agentStream.Write(mBuffer, 0, len);
+                            mProxyStream.Write(mBuffer, 0, len);
+
                         }
                         if (mRequestLength == 0)
                         {
-                           
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), true);
                             OnCompleted(null);
-                            Request.Session.Stream.Flush();
                             return;
                         }
                         else
                         {
+
                             Server.Gateway.OnResponding(this, new ArraySegment<byte>(mBuffer, 0, len), false);
+                            FlushProxyStream(false);
                         }
                     }
                 }
@@ -316,7 +378,8 @@ namespace Bumblebee.Servers
             var request = Request;
             var response = Response;
             Status = RequestStatus.Requesting;
-            mClientAgent.Client.Connect();
+            bool isnew;
+            mClientAgent.Client.Connect(out isnew);
             if (mClientAgent.Client.IsConnected)
             {
                 try
@@ -429,10 +492,21 @@ namespace Bumblebee.Servers
                 Server.Push(mClientAgent);
             }
         }
+
+        public void TimeOut()
+        {
+            if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Warring))
+            {
+                Request.Server.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} timeout!");
+            }
+            OnCompleted(new EventResponseErrorArgs(this.Request, this.Response, UrlRoute.Gateway, $"Request {Server.Host}:{Server.Port} timeout!", 504));
+        }
+
         internal void OnCompleted(EventResponseErrorArgs error)
         {
             if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
             {
+
                 this.ResponseError = error;
                 Time = (long)(TimeWatch.GetTotalMilliseconds() - Request.RequestTime);
                 mClientAgent.Client.ClientError = null;
@@ -460,6 +534,7 @@ namespace Bumblebee.Servers
                         UrlRoute.Pluginer.Requested(this.GetEventRequestCompletedArgs());
                     Completed?.Invoke(this);
 
+
                 }
                 catch (Exception e_)
                 {
@@ -470,6 +545,7 @@ namespace Bumblebee.Servers
                 }
                 finally
                 {
+
                     Request.ClearStream();
                     if (error != null)
                     {
@@ -477,6 +553,7 @@ namespace Bumblebee.Servers
                     }
                     else
                         Request.Recovery();
+                    FlushProxyStream(true);
                     Server.Push(mClientAgent);
                 }
 

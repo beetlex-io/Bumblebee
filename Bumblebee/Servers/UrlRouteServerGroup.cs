@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Collections.Concurrent;
 using BeetleX;
+using System.Linq;
+using BeetleX.FastHttpApi;
+using BeetleX.EventArgs;
 
 namespace Bumblebee.Servers
 {
@@ -27,7 +30,7 @@ namespace Bumblebee.Servers
 
         public string Url { get; private set; }
 
-        public UrlServerInfo[] ServerWeightTable => weightTable.ServerTable;
+        public UrlServerInfo[] ServerWeightTable => weightTable.HttpServerTable;
 
         public UrlServerInfo[] Servers
         {
@@ -41,20 +44,32 @@ namespace Bumblebee.Servers
 
         public Gateway Gateway { get; private set; }
 
+        public bool HttpAvailable { get; private set; }
+
+        public bool WSAvailable { get; private set; }
+
         public bool Available { get; private set; }
 
         public ulong Status
         {
             get
             {
+                ulong httpStatus = 0;
+                ulong wsStatus = 0;
                 ulong status = 0;
                 for (int i = 0; i < mServers.Count; i++)
                 {
                     var item = mServers[i];
                     if (item.Agent.Available)
                         status |= item.ID;
+                    if (item.Agent.WebSocket)
+                        wsStatus |= item.ID;
+                    else
+                        httpStatus |= item.ID;
                 }
                 Available = status > 0;
+                HttpAvailable = httpStatus > 0;
+                WSAvailable = wsStatus > 0;
                 return status;
             }
         }
@@ -76,13 +91,13 @@ namespace Bumblebee.Servers
                 if (wt.Builder())
                 {
                     weightTable = wt;
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route refresh weight table");
+                    Gateway.HttpServer.GetLog(LogType.Warring)?.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {Url} route refresh weight table");
                 }
 
             }
         }
 
-        public void NewOrModify(string host, int weight, int maxRps)
+        public void NewOrModify(string host, int weight, int maxRps, bool standby)
         {
             host = ServerCenter.GetHost(host);
             if (weight > 10)
@@ -94,7 +109,8 @@ namespace Bumblebee.Servers
             {
                 item.Weight = weight;
                 item.MaxRPS = maxRps;
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route update server [{host}] weight [{weight}] max rps [{maxRps}] success");
+                item.Standby = standby;
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route update server [{host}] weight [{weight}] max rps [{maxRps}] success");
             }
             else
             {
@@ -109,8 +125,9 @@ namespace Bumblebee.Servers
                 serverItem.ID = id;
                 serverItem.Weight = weight;
                 serverItem.MaxRPS = maxRps;
+                serverItem.Standby = standby;
                 mServers.Add(serverItem);
-                Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
+                Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route add server [{host}] weight [{weight}] max rps [{maxRps}] success");
             }
             RefreshWeightTable();
         }
@@ -129,19 +146,30 @@ namespace Bumblebee.Servers
                         RefreshWeightTable();
                     }
                     mServerID.Enqueue(id);
-                    Gateway.HttpServer.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route remove server {host} success");
+                    Gateway.HttpServer.GetLog(LogType.Info)?.Log(BeetleX.EventArgs.LogType.Info, $"gateway {Url} route remove server {host} success");
                     return;
                 }
             }
 
         }
 
-        public UrlServerInfo GetAgent(ulong hashCode)
+        public UrlServerInfo GetAgent(ulong hashCode, HttpRequest request)
         {
+
             if (Available)
-                return weightTable.GetAgent(hashCode);
-            else
-                return null;
+            {
+                if (request.WebSocket)
+                {
+                    if (WSAvailable)
+                        return weightTable.GetHttpAgent(hashCode, true);
+                }
+                else
+                {
+                    if (HttpAvailable)
+                        return weightTable.GetHttpAgent(hashCode);
+                }
+            }
+            return null;
         }
 
         public void Verify()
@@ -163,6 +191,8 @@ namespace Bumblebee.Servers
             }
 
             public string Url { get; set; }
+
+            public bool Standby { get; set; } = false;
 
             public ServerAgent Agent { get; set; }
 
@@ -221,23 +251,28 @@ namespace Bumblebee.Servers
 
             private const int TABLE_SIZE = 100;
 
-            private UrlServerInfo[] mConnectionsTable = new UrlServerInfo[0];
+            private UrlServerInfo[] mHttpServerTable = new UrlServerInfo[0];
 
-            public UrlServerInfo[] ServerTable => mConnectionsTable;
+            private UrlServerInfo[] mWSServerTable = new UrlServerInfo[0];
+
+            public UrlServerInfo[] HttpServerTable => mHttpServerTable;
+
+            public UrlServerInfo[] WSServerTabe => mWSServerTable;
 
             private List<UrlServerInfo> mServerItems = new List<UrlServerInfo>();
 
-            public UrlServerInfo GetAgent(ulong hashCode)
+            public UrlServerInfo GetHttpAgent(ulong hashCode, bool isWebsocket = false)
             {
-                if (mServerItems.Count == 0)
+                var servers = isWebsocket ? mWSServerTable : mHttpServerTable;
+                if (servers.Length == 0)
                     return null;
                 int count = 0;
-                int arrayIndex = (int)(hashCode % (uint)mConnectionsTable.Length);
-                while (count < mConnectionsTable.Length)
+                int arrayIndex = (int)(hashCode % (uint)servers.Length);
+                while (count < servers.Length)
                 {
                     if (arrayIndex >= TABLE_SIZE)
                         arrayIndex = 0;
-                    var server = mConnectionsTable[arrayIndex];
+                    var server = servers[arrayIndex];
                     if (server.Agent.Available)
                         return server;
                     arrayIndex++;
@@ -265,20 +300,21 @@ namespace Bumblebee.Servers
                 mServerItems.Add(item);
             }
 
-            public bool Builder()
+            private void BuilderHttp()
             {
-                mConnectionsTable = new UrlServerInfo[TABLE_SIZE];
+                mHttpServerTable = new UrlServerInfo[0];
+                var servers = (from a in mServerItems where !a.Agent.WebSocket orderby a.Weight descending select a).ToList();
+                if (servers.Count == 0)
+                    return;
+                mHttpServerTable = new UrlServerInfo[TABLE_SIZE];
                 int sum = 0;
-                mServerItems.Sort((x, y) => y.Weight.CompareTo(x.Weight));
-                if (mServerItems.Count == 0)
-                    return false;
                 List<UrlServerInfo> availableClients = new List<UrlServerInfo>();
-                for (int i = 0; i < mServerItems.Count; i++)
+                for (int i = 0; i < servers.Count; i++)
                 {
-                    if (mServerItems[i].Agent.Available)
+                    if (servers[i].Agent.Available)
                     {
-                        sum += mServerItems[i].Weight;
-                        availableClients.Add(mServerItems[i]);
+                        sum += servers[i].Weight;
+                        availableClients.Add(servers[i]);
                     }
                 }
                 int count = 0;
@@ -308,7 +344,7 @@ namespace Bumblebee.Servers
                     {
                         if (item.mItems.Count > 0)
                         {
-                            mConnectionsTable[count] = item;
+                            mHttpServerTable[count] = item;
                             item.mItems.Dequeue();
                             count++;
                         }
@@ -318,9 +354,74 @@ namespace Bumblebee.Servers
                 {
                     Status |= item.ID;
                 }
-                Shuffle(mConnectionsTable);
+                Shuffle(mHttpServerTable);
+            }
+
+            private void BuilderWebSocket()
+            {
+                mWSServerTable = new UrlServerInfo[0];
+                var servers = (from a in mServerItems where a.Agent.WebSocket orderby a.Weight descending select a).ToList();
+                if (servers.Count == 0)
+                    return;
+                mWSServerTable = new UrlServerInfo[TABLE_SIZE];
+                int sum = 0;
+                List<UrlServerInfo> availableClients = new List<UrlServerInfo>();
+                for (int i = 0; i < servers.Count; i++)
+                {
+                    if (servers[i].Agent.Available)
+                    {
+                        sum += servers[i].Weight;
+                        availableClients.Add(servers[i]);
+                    }
+                }
+                int count = 0;
+                for (int i = 0; i < availableClients.Count; i++)
+                {
+                    int size = (int)((double)availableClients[i].Weight / (double)sum * (double)TABLE_SIZE);
+                    for (int k = 0; k < size; k++)
+                    {
+                        availableClients[i].mItems.Enqueue(1);
+                        count++;
+                        if (count >= TABLE_SIZE)
+                            goto END;
+                    }
+                }
+                int index = 0;
+                while (count < TABLE_SIZE)
+                {
+                    availableClients[index % availableClients.Count].mItems.Enqueue(1);
+                    index++;
+                    count++;
+                }
+            END:
+                count = 0;
+                while (count < TABLE_SIZE)
+                {
+                    foreach (UrlServerInfo item in availableClients)
+                    {
+                        if (item.mItems.Count > 0)
+                        {
+                            mWSServerTable[count] = item;
+                            item.mItems.Dequeue();
+                            count++;
+                        }
+                    }
+                }
+                foreach (UrlServerInfo item in availableClients)
+                {
+                    Status |= item.ID;
+                }
+                Shuffle(mWSServerTable);
+            }
+
+            public bool Builder()
+            {
+                BuilderHttp();
+                BuilderWebSocket();
                 return true;
             }
+
+
         }
     }
 
