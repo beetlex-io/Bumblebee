@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.705
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gateway.ConsulClientRegister", "Gateway.ConsulClientRegister\Gateway.ConsulClientRegister.csproj", "{FEB88103-F9AC-4986-AC54-60347C1693F0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FEB88103-F9AC-4986-AC54-60347C1693F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEB88103-F9AC-4986-AC54-60347C1693F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEB88103-F9AC-4986-AC54-60347C1693F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEB88103-F9AC-4986-AC54-60347C1693F0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E6EF9579-6286-4030-B1D8-E3A76E0C3F87}
+	EndGlobalSection
+EndGlobal
