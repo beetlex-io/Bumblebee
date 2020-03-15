@@ -477,7 +477,7 @@ namespace Bumblebee
             HttpServer.HttpRequesting += OnHttpRequest;
             HttpServer.HttpDisconnect += OnHttpDisconnect;
             LoadConfig();
-            HeaderTypeFactory.SERVAR_HEADER_BYTES = Encoding.ASCII.GetBytes("Server :" + GATEWAY_VERSION + "\r\n");
+            HeaderTypeFactory.SERVAR_HEADER_BYTES = Encoding.ASCII.GetBytes("Server:" + GATEWAY_VERSION + "\r\n");
             PluginCenter.Load(typeof(Gateway).Assembly);
 
             mVerifyTimer = new Timer(OnVerifyTimer, null, 1000, 1000);
