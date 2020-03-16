@@ -8,7 +8,7 @@ namespace Bumblebee
 {
     public class BadGateway : InnerErrorResult
     {
-        public IHeaderItem HTML_UTF8 = new HeaderItem("text/html; charset=utf-8\r\n");
+        public IHeaderItem HTML_UTF8 = new ContentType("text/html; charset=utf-8");
 
         public BadGateway(string errormsg, int code = 502) : base(code.ToString(), "Bad Gateway", new Exception(errormsg), false)
         {
