@@ -11,13 +11,13 @@ namespace Bumblebee
 
         public GatewayConfig()
         {
-            GatewayQueueSize = Environment.ProcessorCount * 500;
+            GatewayQueueSize = Environment.ProcessorCount * 100;
             InstanceID = Guid.NewGuid().ToString("N");
         }
 
         public int AgentMaxConnection { get; set; } = 300;
 
-        public int AgentRequestQueueSize { get; set; } = 2000;
+        public int AgentRequestQueueSize { get; set; } = 500;
 
         public int GatewayQueueSize { get; set; }
 
@@ -57,8 +57,9 @@ namespace Bumblebee
                     Uri = server.Uri.ToString(),
                     Remark = server.Remark,
                     Category = server.Category,
+                    Command = server.Command,
                     Properties = server.GetProperties()
-                });
+                }); ;
             }
             this.OutputServerAddress = gateway.OutputServerAddress;
             this.AgentMaxConnection = gateway.AgentMaxConnection;
@@ -107,6 +108,7 @@ namespace Bumblebee
             foreach (var server in Servers)
             {
                 var agent = gateway.SetServer(server.Uri, server.Category, server.Remark, server.MaxConnections);
+                agent.Command = server.Command;
                 agent.SetProperties(server.Properties);
             }
             foreach (var s in gateway.Agents.Servers)
@@ -140,6 +142,8 @@ namespace Bumblebee
 
             public string Remark { get; set; }
 
+            public string Command { get; set; }
+
             public Tuple<string, string>[] Properties { get; set; }
         }
 
@@ -158,6 +162,20 @@ namespace Bumblebee
 
             public int MaxRps { get; set; }
 
+            public long TimeOut { get; set; }
+
+            public string AccessControlAllowOrigin { get; set; }
+
+            public string AccessControlAllowMethods { get; set; } = "*";
+
+            public string AccessControlAllowHeaders { get; set; }
+
+            public int AccessControlMaxAge { get; set; }
+
+            public bool AccessControlAllowCredentials { get; set; }
+
+            public string Vary { get; set; } = "Origin";
+
             public class RouteServer
             {
                 public string Url { get; set; }
@@ -175,6 +193,13 @@ namespace Bumblebee
                 Remark = urlRoute.Remark;
                 HashPattern = urlRoute.HashPattern;
                 MaxRps = urlRoute.MaxRps;
+                TimeOut = urlRoute.TimeOut;
+                AccessControlAllowHeaders = urlRoute.AccessControlAllowHeaders;
+                AccessControlAllowMethods = urlRoute.AccessControlAllowMethods;
+                AccessControlAllowOrigin = urlRoute.AccessControlAllowOrigin;
+                AccessControlMaxAge = urlRoute.AccessControlMaxAge;
+                Vary = urlRoute.Vary;
+                AccessControlAllowCredentials = urlRoute.AccessControlAllowCredentials;
                 this.PluginConfig = new PluginConfig(urlRoute.Pluginer);
                 foreach (var server in urlRoute.Servers)
                 {
@@ -185,13 +210,28 @@ namespace Bumblebee
             public void To(Gateway gateway)
             {
                 gateway.RemoveRoute(Url);
-
-                var result = gateway.SetRoute(Url, Remark, HashPattern);
+                Routes.UrlRoute result;
+                if (Url == "*")
+                {
+                    result = gateway.Routes.Default;
+                }
+                else
+                {
+                    result = gateway.SetRoute(Url, Remark, HashPattern);
+                }
+                result.MaxRps = MaxRps;
+                result.TimeOut = TimeOut;
+                result.Vary = Vary;
+                result.AccessControlMaxAge = AccessControlMaxAge;
+                result.AccessControlAllowOrigin = AccessControlAllowOrigin;
+                result.AccessControlAllowMethods = AccessControlAllowMethods;
+                result.AccessControlAllowHeaders = AccessControlAllowHeaders;
+                result.AccessControlAllowCredentials = this.AccessControlAllowCredentials;
                 this.PluginConfig.To(result.Pluginer);
                 foreach (var server in Servers)
                 {
                     var r = result.AddServer(server.Url, server.Weight, server.MaxRps, server.Standby);
-
+                    r.TimeOut = TimeOut;
                     r.MaxRps = this.MaxRps;
                 }
             }

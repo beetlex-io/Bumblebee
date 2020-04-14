@@ -7,6 +7,6 @@ namespace Bumblebee.Plugins
 {
     public interface IRespondingHandler:IPlugin
     {
-        void Exeucte(EventRespondingArgs e);
+        void Execute(EventRespondingArgs e);
     }
 }

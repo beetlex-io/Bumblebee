@@ -451,7 +451,7 @@ namespace Bumblebee.Plugins
                 for (int i = 0; i < items.Length; i++)
                 {
                     if (Gateway.PluginCenter.PluginIsEnabled(items[i]))
-                        items[i].Exeucte(e);
+                        items[i].Execute(e);
                 }
             }
         }

@@ -36,7 +36,7 @@ namespace Bumblebee
 
         public const int URL_FILTER_ERROR = 593;
 
-        public const int IP_LIMITS_ERROR = 594;
+        public const int IP_LIMITS_ERROR = 509;
 
         public const int URL_LIMITS_ERROR = 595;
 
@@ -58,7 +58,7 @@ namespace Bumblebee
 
         public int BufferSize { get; set; } = 1024 * 4;
 
-        public int PoolMaxSize { get; set; } = 1024 * 50;
+        public int PoolMaxSize { get; set; } = 1024 * 500;
 
         static Gateway()
         {
@@ -76,14 +76,15 @@ namespace Bumblebee
             Statistics.Server = "Gateway";
             AgentMaxSocketError = 3;
             MaxStatsUrls = 20000;
-            AgentMaxConnection = 200;
+            AgentMaxConnection = 500;
             AgentRequestQueueSize = 500;
             ThreadQueues = (Environment.ProcessorCount / 2);
             if (ThreadQueues == 0)
                 ThreadQueues = 1;
             GatewayQueueSize = Environment.ProcessorCount * 100;
             InstanceID = Guid.NewGuid().ToString("N");
-            GATEWAY_VERSION = $"beetlex.io[{typeof(BeetleX.BXException).Assembly.GetName().Version}/{HttpServer.GetType().Assembly.GetName().Version}/{GetType().Assembly.GetName().Version}]";
+            GATEWAY_VERSION = $"beetlex.io";
+            TimeoutFactory = new TimeoutFactory(this);
 
         }
 
@@ -169,6 +170,8 @@ namespace Bumblebee
         public Routes.RouteCenter Routes { get; private set; }
 
         public Servers.ServerCenter Agents { get; private set; }
+
+        internal Servers.TimeoutFactory TimeoutFactory { get; private set; }
 
         public Statistics Statistics { get; private set; } = new Statistics();
 
@@ -359,19 +362,19 @@ namespace Bumblebee
                            );
                 Pluginer.Requested(se);
             }
-            RequestIncrementCompleted(e.Request, e.ErrorCode, 1, null);
             this.Pluginer.ResponseError(e);
             if (e.Result != null)
             {
                 e.Response.Result(e.Result);
             }
+            RequestIncrementCompleted(e.Request, e.ErrorCode, 1, null);
         }
 
         internal void OnRequestCompleted(Servers.RequestAgent success)
         {
             try
             {
-                ServerHttpRequested.Invoke(this, success);
+                ServerHttpRequested?.Invoke(this, success);
             }
             catch (Exception e_)
             {
@@ -381,6 +384,7 @@ namespace Bumblebee
                         $"Gateway {success.Request.ID} {success.Request.RemoteIPAddress} {success.Request.Method} {success.Request.Url} error {e_.Message}@{e_.StackTrace}");
                 }
             }
+            HttpServer.IncrementResponsed(success.Request, null, success.Time, success.Code, success.Message);
             RequestIncrementCompleted(success.Request, success.Code, success.Time, success.Server);
             if (Pluginer.RequestedEnabled)
                 Pluginer.Requested(success.GetEventRequestCompletedArgs());
@@ -405,7 +409,6 @@ namespace Bumblebee
 
         public void RequestIncrementCompleted(HttpRequest request, int code, long time, Servers.ServerAgent server = null)
         {
-            HttpServer.IncrementResponsed(request, null, time, code, null);
             if (StatisticsEnabled)
             {
                 Statistics.Add(code, time);
@@ -487,11 +490,21 @@ namespace Bumblebee
 
         private void OutputLogo()
         {
-            AssemblyCopyrightAttribute productAttr = typeof(BeetleX.BXException).Assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
+            AssemblyCopyrightAttribute productAttr = typeof(Gateway).Assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
             var logo = "\r\n";
-            logo += "*******************************************************************************\r\n";
-            logo += " BeetleX http and websocket gateway framework \r\n";
+            logo += " -----------------------------------------------------------------------------\r\n";
+            logo +=
+@"          ____                  _     _         __   __
+         |  _ \                | |   | |        \ \ / /
+         | |_) |   ___    ___  | |_  | |   ___   \ V / 
+         |  _ <   / _ \  / _ \ | __| | |  / _ \   > <  
+         | |_) | |  __/ |  __/ | |_  | | |  __/  / . \ 
+         |____/   \___|  \___|  \__| |_|  \___| /_/ \_\ 
 
+                    http and websocket gateway framework   
+
+";
+            logo += " -----------------------------------------------------------------------------\r\n";
             logo += $" {productAttr.Copyright}\r\n";
             logo += $" ServerGC    [{GCSettings.IsServerGC}]\r\n";
             logo += $" BeetleX     Version [{typeof(BeetleX.BXException).Assembly.GetName().Version}]\r\n";
@@ -502,7 +515,7 @@ namespace Bumblebee
             {
                 logo += $" {item}\r\n";
             }
-            logo += "*******************************************************************************\r\n";
+            logo += " -----------------------------------------------------------------------------\r\n";
 
             HttpServer.Log(LogType.Info, logo);
 

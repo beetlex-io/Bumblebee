@@ -40,12 +40,20 @@ namespace Bumblebee.WSAgents
                 }
                 else
                 {
-                    if (mReceiveFrame == null)
-                        mReceiveFrame = new AgentDataFrame();
-                    if (mReceiveFrame.Read(stream.ToPipeStream()) == DataPacketLoadStep.Completed)
+                    var pipeStream = stream.ToPipeStream();
+                    while (pipeStream.Length > 0)
                     {
-                        Completed?.Invoke(client, mReceiveFrame);
-                        mReceiveFrame = null;
+                        if (mReceiveFrame == null)
+                            mReceiveFrame = new AgentDataFrame();
+                        if (mReceiveFrame.Read(pipeStream) == DataPacketLoadStep.Completed)
+                        {
+                            Completed?.Invoke(client, mReceiveFrame);
+                            mReceiveFrame = null;
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
             }

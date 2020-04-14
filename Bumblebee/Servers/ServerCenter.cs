@@ -93,6 +93,7 @@ namespace Bumblebee.Servers
             catch (Exception e_)
             {
                 Gateway.HttpServer.GetLog(LogType.Error)?.Log(BeetleX.EventArgs.LogType.Error, $"gateway set {host} server max connections {maxConnections} error {e_.Message}{e_.StackTrace}");
+                throw e_;
             }
             return result;
         }

@@ -31,7 +31,7 @@ namespace Bumblebee.Routes
                     request.Server.Log(LogType.Info, $"Gateway websocket {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s route server unavailable");
                 }
 
-                UrlRoute.Gateway.RequestIncrementCompleted(request, Gateway.URL_NODE_SERVER_UNAVAILABLE, 1,null);
+                UrlRoute.Gateway.RequestIncrementCompleted(request, Gateway.URL_NODE_SERVER_UNAVAILABLE, 1, null);
                 var frame = request.Server.CreateDataFrame(new { Code = Gateway.WEBSOCKET_INNER_ERROR, Error = $"Gateway websocket {UrlRoute.Url}'s route server unavailable" });
                 frame.Send(request.Session);
             }
@@ -74,7 +74,21 @@ namespace Bumblebee.Routes
             {
                 request.Server.Log(LogType.Debug, $"Gateway {request.RemoteIPAddress} {request.Method} {request.Url} request {UrlRoute.Url}'s get urlroute agent!");
             }
-
+            if (string.Compare(request.Method, "OPTIONS", true) == 0)
+            {
+                if (!string.IsNullOrEmpty(UrlRoute.AccessControlAllowOrigin))
+                {
+                    OptionsAttribute oa = new OptionsAttribute();
+                    oa.AllowCredentials = UrlRoute.AccessControlAllowCredentials;
+                    oa.AllowHeaders = UrlRoute.AccessControlAllowHeaders;
+                    oa.AllowMaxAge = UrlRoute.AccessControlMaxAge > 0 ? UrlRoute.AccessControlMaxAge.ToString() : null;
+                    oa.AllowMethods = UrlRoute.AccessControlAllowMethods;
+                    oa.AllowOrigin = UrlRoute.AccessControlAllowOrigin;
+                    oa.Vary = UrlRoute.Vary;
+                    response.Result(oa);
+                    return;
+                }
+            }
             if (!UrlRoute.ValidateRPS())
             {
                 string error = $"Unable to reach [{UrlRoute.Url} route {request.Url}] in  HTTP request, exceeding maximum number of rps limit";

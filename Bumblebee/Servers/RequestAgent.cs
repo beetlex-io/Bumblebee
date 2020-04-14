@@ -36,6 +36,11 @@ namespace Bumblebee.Servers
             mRequestID = request.ID;
             //System.Threading.Interlocked.Increment(ref RequestCount);
             //mHistoryRequests[mRequestID] = this;
+            if (UrlRoute.TimeOut > 0)
+            {
+                TimerOutValue = mStartTime + UrlRoute.TimeOut;
+                UrlRoute.Gateway.TimeoutFactory.Add(this);
+            }
             mProxyStream = new PipeStream(UrlRoute.Gateway.ProxyBufferPool);
         }
 
@@ -60,6 +65,8 @@ namespace Bumblebee.Servers
         public long StartTime => mStartTime;
 
         public int BodyReceives { get; private set; } = 0;
+
+        internal long TimerOutValue { get; set; }
 
         public string ResponseStatus { get; private set; }
 
@@ -154,7 +161,6 @@ namespace Bumblebee.Servers
             }
         }
 
-
         private void FlushProxyStream(bool end)
         {
             IBuffer buffer = mProxyStream.GetWriteCacheBufers();
@@ -198,13 +204,46 @@ namespace Bumblebee.Servers
             }
         }
 
+        private void OnWriteCORS(Header headers)
+        {
+            if (!string.IsNullOrEmpty(UrlRoute.AccessControlAllowOrigin))
+            {
+                headers["Access-Control-Allow-Origin"] = UrlRoute.AccessControlAllowOrigin;
+                if (UrlRoute.AccessControlAllowOrigin != "*")
+                    headers["Vary"] = UrlRoute.Vary;
+
+                if (!string.IsNullOrEmpty(UrlRoute.AccessControlAllowMethods))
+                {
+                    headers["Access-Control-Allow-Methods"] = UrlRoute.AccessControlAllowMethods;
+                }
+
+                if (!string.IsNullOrEmpty(UrlRoute.AccessControlAllowHeaders))
+                {
+                    headers["Access-Control-Allow-Headers"] = UrlRoute.AccessControlAllowHeaders;
+                }
+
+                if (UrlRoute.AccessControlMaxAge > 0)
+                {
+                    headers["Access-Control-Max-Age"] = UrlRoute.AccessControlMaxAge.ToString();
+                }
+
+                if (UrlRoute.AccessControlAllowCredentials)
+                {
+                    headers["Access-Control-Allow-Credentials"] = "true";
+                }
+                else
+                {
+                    headers["Access-Control-Allow-Credentials"] = "false";
+                }
+            }
+        }
+
         private void OnReadResponseHeader(PipeStream pipeStream)
         {
             if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
             {
                 Request.Server.Log(BeetleX.EventArgs.LogType.Info, $"Gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} response stream reading");
             }
-            // PipeStream agentStream = GetRequestStream();
             if (Status == RequestStatus.RespondingHeader)
             {
                 mClientAgent.Status = TcpClientAgentStatus.ResponseReciveHeader;
@@ -217,19 +256,17 @@ namespace Bumblebee.Servers
                     {
                         if (Request.VersionNumber == "1.0" && Request.KeepAlive)
                         {
-                            // agentStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
+
                             mProxyStream.Write(Gateway.KEEP_ALIVE, 0, Gateway.KEEP_ALIVE.Length);
                         }
                         mResponseHeader.Add(Gateway.GATEWAY_HEADER, Gateway.GATEWAY_VERSION);
                         UrlRoute.Pluginer.HeaderWriting(Request, Response, mResponseHeader);
-                        // mResponseHeader.Write(agentStream);
+                        OnWriteCORS(mResponseHeader);
                         mResponseHeader.Write(mProxyStream);
                         if (Server.Gateway.OutputServerAddress)
                         {
-                            // agentStream.Write("Logic-Server: " + Server.ServerName + "\r\n");
                             mProxyStream.Write(Server.AddressHeader, 0, Server.AddressHeader.Length);
                         }
-                        //agentStream.Write(mBuffer, 0, indexof.Length);
                         mProxyStream.Write(mBuffer, 0, indexof.Length);
                         Status = RequestStatus.RespondingBody;
                         if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Info))
@@ -481,37 +518,26 @@ namespace Bumblebee.Servers
 
         private int mCompletedStatus = 0;
 
-        internal void Cancel()
-        {
-            if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
-            {
-                mClientAgent.Client.ClientError = null;
-                mClientAgent.Client.DataReceive = null;
-                if (mClientAgent.Client.IsConnected)
-                    mClientAgent.Client.DisConnect();
-                Server.Push(mClientAgent);
-            }
-        }
+        private bool IsTimeOut = false;
 
         public void TimeOut()
         {
-            if (Request.Server.EnableLog(BeetleX.EventArgs.LogType.Warring))
-            {
-                Request.Server.Log(BeetleX.EventArgs.LogType.Warring, $"gateway {Request.ID} {Request.RemoteIPAddress} {Request.Method} {Request.Url} -> {Server.Host}:{Server.Port} timeout!");
-            }
-            OnCompleted(new EventResponseErrorArgs(this.Request, this.Response, UrlRoute.Gateway, $"Request {Server.Host}:{Server.Port} timeout!", 504));
+            IsTimeOut = true;
+            OnCompleted(new EventResponseErrorArgs(this.Request, this.Response, UrlRoute.Gateway, $"Request {Server.Host}:{Server.Port}{this.Request.Url} timeout !", 504));
         }
 
         internal void OnCompleted(EventResponseErrorArgs error)
         {
             if (System.Threading.Interlocked.CompareExchange(ref mCompletedStatus, 1, 0) == 0)
             {
-
+                UrlRoute.Gateway.TimeoutFactory.Remove(this);
                 this.ResponseError = error;
                 Time = (long)(TimeWatch.GetTotalMilliseconds() - Request.RequestTime);
                 mClientAgent.Client.ClientError = null;
                 mClientAgent.Client.DataReceive = null;
                 mClientAgent.Status = TcpClientAgentStatus.ResponseSuccess;
+                if (IsTimeOut)
+                    mClientAgent.Client.DisConnect();
                 //System.Threading.Interlocked.Decrement(ref RequestCount);
                 //mHistoryRequests.Remove(mRequestID, out RequestAgent value);
                 try

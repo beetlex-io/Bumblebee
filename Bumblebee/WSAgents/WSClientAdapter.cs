@@ -82,10 +82,11 @@ namespace Bumblebee.WSAgents
                 }
                 WSClient.ServerAgent.Statistics.Add(Gateway.WEBSOCKET_INNER_ERROR, 10);
                 Gateway.Statistics.Add(Gateway.WEBSOCKET_INNER_ERROR, 10);
-                Gateway.RequestIncrementCompleted(Request, Gateway.WEBSOCKET_INNER_ERROR, 10, WSClient.ServerAgent);
+              //  Gateway.RequestIncrementCompleted(Request, Gateway.WEBSOCKET_INNER_ERROR, 10, WSClient.ServerAgent);
             }
             else
             {
+               // Console.WriteLine($"return websocket packet {e.Frame.Body?.Count}");
                 var frame = Request?.Server.CreateDataFrame();
                 frame.FIN = e.Frame.FIN;
                 frame.IsMask = e.Frame.IsMask;
@@ -99,7 +100,7 @@ namespace Bumblebee.WSAgents
                 var time = GetTime(e.Frame);
                 WSClient.ServerAgent.Statistics.Add(Gateway.WEBSOCKET_SUCCESS, time);
                 Gateway.Statistics.Add(Gateway.WEBSOCKET_SUCCESS, time);
-                Gateway.RequestIncrementCompleted(Request, Gateway.WEBSOCKET_SUCCESS, time, WSClient.ServerAgent);
+               // Gateway.RequestIncrementCompleted(Request, Gateway.WEBSOCKET_SUCCESS, time, WSClient.ServerAgent);
             }
         }
 

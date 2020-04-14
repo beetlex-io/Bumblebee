@@ -71,6 +71,26 @@ namespace Bumblebee.Routes
 
         public string UrlPattern { get; set; }
 
+        public long TimeOut { get; set; }
+
+        #region access-control
+
+        public string AccessControlAllowOrigin { get; set; }
+
+        public string AccessControlAllowMethods { get; set; }
+
+        public string AccessControlAllowHeaders { get; set; }
+
+        public int AccessControlMaxAge { get; set; }
+
+        public string Vary { get; set; } = "Origin";
+
+        public bool AccessControlAllowCredentials { get; set; }
+
+        #endregion
+
+
+
         #region rps limit
 
         public int MaxRps { get; set; } = 0;

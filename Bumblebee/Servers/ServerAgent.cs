@@ -79,6 +79,8 @@ namespace Bumblebee.Servers
 
         public string Category { get; set; }
 
+        public string Command { get; set; }
+
         public string Remark { get; set; }
 
         public string ServerName { get; set; }
@@ -199,6 +201,8 @@ namespace Bumblebee.Servers
         public int Port { get; set; }
 
         public bool Available { get; set; }
+
+        public System.Diagnostics.Process Process { get; set; }
 
         public int MaxConnections { get; internal set; }
 
