@@ -9,7 +9,7 @@ Bumblebee是一款支持`http`和`websocket`。它的重点是用于对WebAPI微
 - 支持`https`可以制定更安全的通讯服务应用
 - 支持`windows`,`linux`等多平台
 ## 详细使用文档
-[http://doc.beetlex.io](http://doc.beetlex.io/#29322e3796694434894fc2e6e8747626)
+[http://blog.beetlex.io](http://blog.beetlex.io/?postid=9d66d5bf6cef47ff82edc410719959bd)
 ## 在线案例
 http://beetlex.io/__system/bumblebee/
 
