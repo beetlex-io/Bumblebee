@@ -6,10 +6,11 @@ Bumblebee是一款支持`http`和`websocket`。它的重点是用于对WebAPI微
 - 负载策略多样性，可以针对不同的路径和服务制定不同的负载方式，包括有：动太一致性，权重负载和请求限制等.
 - 自动的负载故障和恢复迁移，组件对服务的可用性会进行一个可靠的管理，根据服务的可用性进行动态负载策略调整.
 - 完善的插件扩展机制，可以制定如管理，监控，日志和安全访问等等功能。
+- 支持 web进程管理与发布
 - 支持`https`可以制定更安全的通讯服务应用
 - 支持`windows`,`linux`等多平台
 ## 详细使用文档
-[http://blog.beetlex.io](http://blog.beetlex.io/?postid=9d66d5bf6cef47ff82edc410719959bd)
+[使用安装](http://blog.beetlex.io/?postid=9d66d5bf6cef47ff82edc410719959bd)
 ## 在线案例
 http://beetlex.io/__system/bumblebee/
 
