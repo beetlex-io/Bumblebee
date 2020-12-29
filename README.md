@@ -41,7 +41,7 @@ http://beetlex.io/__system/bumblebee/
 
 ### Url响应分析
 
-![image](https://user-images.githubusercontent.com/2564178/103147995-cf62f400-4795-11eb-8bfb-5ac79680f7c3.png)
+![image](https://user-images.githubusercontent.com/2564178/103263568-30333c00-49e3-11eb-8d5b-026b9d62ce25.png)
 
-![image](https://user-images.githubusercontent.com/2564178/103148005-eacdff00-4795-11eb-93b9-b52b3a16a040.png)
+![image](https://user-images.githubusercontent.com/2564178/103263596-49d48380-49e3-11eb-9f73-16bad73b0150.png)
 
