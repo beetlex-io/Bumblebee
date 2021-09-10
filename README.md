@@ -17,31 +17,9 @@ Bumblebee是一款支持`http`和`websocket`服务网关。它的重点是用于
 ## 在线案例
 http://beetlex.io/__system/bumblebee/
 
-## 发布版的功能
+![image](https://user-images.githubusercontent.com/2564178/132865794-4c80cf20-2be6-4760-bc63-f37e867cb3c6.png)
 
-### 主页面统计监控
+![image](https://user-images.githubusercontent.com/2564178/132865923-d6884275-f571-4252-927d-07ddaaf9a2d2.png)
 
-![image](https://user-images.githubusercontent.com/2564178/103147946-3502b080-4795-11eb-97c0-bc742d3a5507.png)
-
-### 路由负载管理
-
-![image](https://user-images.githubusercontent.com/2564178/103147956-4b107100-4795-11eb-8011-0f07d7038668.png)
-
-### 应用服务文件管理
-
-![image](https://user-images.githubusercontent.com/2564178/103147967-7b580f80-4795-11eb-92dd-06ea646c3910.png)
-
-### 服务进程管理
-
-![image](https://user-images.githubusercontent.com/2564178/103147972-8dd24900-4795-11eb-9de5-e0862d171a76.png)
-
-### 插件管理
-
-![image](https://user-images.githubusercontent.com/2564178/103147987-b9553380-4795-11eb-9c0c-73877d324df4.png)
-
-### Url响应分析
-
-![image](https://user-images.githubusercontent.com/2564178/103263568-30333c00-49e3-11eb-8d5b-026b9d62ce25.png)
-
-![image](https://user-images.githubusercontent.com/2564178/103263596-49d48380-49e3-11eb-9f73-16bad73b0150.png)
+![image](https://user-images.githubusercontent.com/2564178/132865985-a749e0a6-06ce-44f7-8c25-690d93299813.png)
 
